@@ -1,0 +1,30 @@
+{
+  "questions": [
+    "Which column (excluding row_id) has the highest fraction of missing values? Return the single column name.",
+    "Considering only columns ['instant', 'dteday', 'season', 'yr', 'mnth', 'hr', 'holiday', 'weekday', 'workingday', 'weathersit', 'temp', 'atemp', 'hum', 'windspeed', 'casual', 'registered', 'cnt'], how many rows have at least one missing value? Return the count.",
+    "Considering only columns ['instant', 'dteday', 'season', 'yr', 'mnth', 'hr', 'holiday', 'weekday', 'workingday', 'weathersit', 'temp', 'atemp', 'hum', 'windspeed', 'casual', 'registered', 'cnt'], which row_id has the largest number of missing values? If tied, return the smallest row_id.",
+    "Which column is a duplicate of 'temp'?",
+    "Which pair of columns are identical for all rows (excluding row_id)? Return the two column names sorted alphabetically.",
+    "How many rows have temp != feature_0429? Return an integer.",
+    "What is the Pearson correlation between 'temp' and 'atemp'? Return a number rounded to 3 decimals.",
+    "Among numeric columns excluding 'temp', which column has the highest absolute Pearson correlation with 'temp'? Return the single column name.",
+    "Among all numeric columns (excluding row_id), which pair has the highest absolute Pearson correlation? Return the two column names sorted alphabetically."
+  ],
+  "answers": [
+    "workingday",
+    2919,
+    7405,
+    "feature_0429",
+    [
+      "feature_0429",
+      "temp"
+    ],
+    0,
+    1.0,
+    "feature_0429",
+    [
+      "feature_0429",
+      "temp"
+    ]
+  ]
+}

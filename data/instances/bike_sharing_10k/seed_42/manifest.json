@@ -1,0 +1,127 @@
+{
+  "dataset_instance_id": "bike_sharing_10k_seed_42",
+  "seed": 42,
+  "base_dataset": "data/standardized/bike_sharing_10k.csv",
+  "phenomena": [
+    {
+      "type": "mcar_missingness",
+      "params": {
+        "mcar_rate": 0.02,
+        "columns": [
+          "instant",
+          "dteday",
+          "season",
+          "yr",
+          "mnth",
+          "hr",
+          "holiday",
+          "weekday",
+          "workingday",
+          "weathersit",
+          "temp",
+          "atemp",
+          "hum",
+          "windspeed",
+          "casual",
+          "registered",
+          "cnt"
+        ]
+      },
+      "effects": {
+        "nulled_cells": 3400
+      },
+      "questions": [
+        {
+          "template_id": "mcar_max_missing_col_v0",
+          "answer_format": "categorical",
+          "question": "Which column (excluding row_id) has the highest fraction of missing values? Return the single column name.",
+          "answer": "workingday"
+        },
+        {
+          "template_id": "mcar_rows_with_any_missing_v0",
+          "answer_format": "integer",
+          "question": "Considering only columns ['instant', 'dteday', 'season', 'yr', 'mnth', 'hr', 'holiday', 'weekday', 'workingday', 'weathersit', 'temp', 'atemp', 'hum', 'windspeed', 'casual', 'registered', 'cnt'], how many rows have at least one missing value? Return the count.",
+          "answer": 2919
+        },
+        {
+          "template_id": "mcar_row_with_most_missing_v0",
+          "answer_format": "row_id",
+          "question": "Considering only columns ['instant', 'dteday', 'season', 'yr', 'mnth', 'hr', 'holiday', 'weekday', 'workingday', 'weathersit', 'temp', 'atemp', 'hum', 'windspeed', 'casual', 'registered', 'cnt'], which row_id has the largest number of missing values? If tied, return the smallest row_id.",
+          "answer": 7405,
+          "evidence": {
+            "max_missing_count": 5
+          }
+        }
+      ]
+    },
+    {
+      "type": "duplicate_feature",
+      "params": {
+        "source_col": "temp",
+        "new_col": "feature_0429"
+      },
+      "effects": {
+        "created_column": "feature_0429"
+      },
+      "questions": [
+        {
+          "question": "Which column is a duplicate of 'temp'?",
+          "answer": "feature_0429",
+          "answer_format": "categorical",
+          "template_id": "dup_find_copy_v0"
+        },
+        {
+          "question": "Which pair of columns are identical for all rows (excluding row_id)? Return the two column names sorted alphabetically.",
+          "answer": [
+            "feature_0429",
+            "temp"
+          ],
+          "answer_format": "categorical_list",
+          "template_id": "dup_identical_pair_v0"
+        },
+        {
+          "question": "How many rows have temp != feature_0429? Return an integer.",
+          "answer": 0,
+          "answer_format": "integer",
+          "template_id": "dup_mismatch_count_v0"
+        }
+      ]
+    },
+    {
+      "type": "correlation_injection",
+      "params": {
+        "x_col": "temp",
+        "y_col": "atemp",
+        "alpha": 0.97,
+        "noise_std": 0.03
+      },
+      "effects": {
+        "rows_modified": 9594,
+        "achieved_corr": 0.9995397248961515
+      },
+      "questions": [
+        {
+          "template_id": "corr_value_pair_v0",
+          "answer_format": "float_3dp",
+          "question": "What is the Pearson correlation between 'temp' and 'atemp'? Return a number rounded to 3 decimals.",
+          "answer": 1.0
+        },
+        {
+          "template_id": "corr_most_corr_with_x_v0",
+          "answer_format": "categorical",
+          "question": "Among numeric columns excluding 'temp', which column has the highest absolute Pearson correlation with 'temp'? Return the single column name.",
+          "answer": "feature_0429"
+        },
+        {
+          "template_id": "corr_most_corr_pair_v0",
+          "answer_format": "categorical_list",
+          "question": "Among all numeric columns (excluding row_id), which pair has the highest absolute Pearson correlation? Return the two column names sorted alphabetically.",
+          "answer": [
+            "feature_0429",
+            "temp"
+          ]
+        }
+      ]
+    }
+  ]
+}
