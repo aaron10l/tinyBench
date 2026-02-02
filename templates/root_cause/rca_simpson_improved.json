@@ -1,0 +1,45 @@
+{
+  "template_id": "rca_performance_improve_v0",
+  "category": "Root Cause Analysis",
+  "answer_format": "categorical",
+  "question": "Between period A and period B (defined by before and after {SPECIFIC_DATE} in {TIME_COL}), did {OUTCOME_COL} improve, worsen, or stay about the same? Return exactly one of: IMPROVED, WORSENED, UNCHANGED.",
+
+  "slots": {
+    "OUTCOME_COL": {
+      "type": "column",
+      "source": "dataset.target",
+      "kind_any_of": ["binary", "regression"],
+      "dtype_any_of": ["bool", "int", "float"],
+      "unique_count_min": 2
+    },
+    "TIME_COL": {
+      "type": "column",
+      "kind_any_of": ["categorical", "id_no"],
+      "dtype_any_of": ["int", "date", "datetime", "string"],
+      "unique_count_min": 2
+    },
+    "SPECIFIC_DATE": {
+      "type": "string",
+      "source": "column_values",
+      "source_column": "TIME_COL"
+    }
+  },
+
+  "feature_pool": {
+    "exclude_target": true,
+    "exclude_kinds": ["id_no"],
+    "exclude_dtypes": ["empty"]
+  },
+
+  "requirements": [
+    {
+      "type": "min_feature_count",
+      "min": 5
+    },
+    {
+      "type": "min_count_by_dtype",
+      "dtype": "int",
+      "min": 1
+    }
+  ]
+}

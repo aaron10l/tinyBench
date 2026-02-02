@@ -1,0 +1,30 @@
+
+{
+  "template_id": "anomaly_data_quality_filter_v0",
+  "category": "Surprise / Anomaly Detection",
+  "answer_format": "categorical",
+  "question": "You can apply exactly one rule based on a single column to exclude problematic rows before analyzing {OUTCOME_COL}. Which column should the rule be based on? Return a single column name.",
+
+  "slots": {
+    "OUTCOME_COL": {
+      "type": "column",
+      "source": "dataset.target",
+      "kind_any_of": ["binary", "categorical", "regression"],
+      "dtype_any_of": ["bool", "int", "float", "string"],
+      "unique_count_min": 2
+    }
+  },
+
+  "feature_pool": {
+    "exclude_target": true,
+    "exclude_kinds": ["id_no"],
+    "exclude_dtypes": ["empty"]
+  },
+
+  "requirements": [
+    {
+      "type": "min_feature_count",
+      "min": 2
+    }
+  ]
+}

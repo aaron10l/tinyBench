@@ -1,0 +1,32 @@
+{
+  "template_id": "fi_leakage_topk_v0",
+  "category": "Feature Attribution / Importance",
+  "answer_format": "feature_ranked_list",
+  "question": "Which columns matter most for understanding or predicting {OUTCOME_COL}? Return up to {K} feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+
+  "slots": {
+    "OUTCOME_COL": {
+      "type": "column",
+      "source": "dataset.target",
+      "kind_any_of": ["regression", "binary", "categorical"]
+    },
+    "K": {
+      "type": "int",
+      "default": 5,
+      "min": 1,
+      "max": 10
+    }
+  },
+
+  "feature_pool": {
+    "exclude_kinds": ["id_no"],
+    "exclude_target": true
+  },
+
+  "requirements": [
+    {
+      "type": "min_feature_count",
+      "min": 5
+    }
+  ]
+}

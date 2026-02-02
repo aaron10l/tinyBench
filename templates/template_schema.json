@@ -1,0 +1,72 @@
+{
+  "template_id": "string_unique_id",
+  "category": "string_category_name",
+  "answer_format": "string_answer_format",
+  "question": "string_with_{SLOTS}",
+
+  "slots": {
+    "COLUMN_SLOT": {
+      "type": "column",
+      "source": "dataset.target",
+      "kind_any_of": ["binary", "categorical", "regression", "id_no"],
+      "dtype_any_of": ["bool", "int", "float", "date", "datetime", "string", "mixed", "empty"],
+      "unique_count_min": 0,
+      "unique_count_max": 999999,
+      "optional": false
+    },
+    "TIME_COL": {
+      "type": "column",
+      "kind_any_of": ["categorical", "id_no"],
+      "dtype_any_of": ["date", "datetime"],
+      "unique_count_min": 2,
+      "optional": false
+    },
+    "COLUMN_VALUE_SLOT": {
+      "type": "string",
+      "source": "column_values",
+      "source_column": "COLUMN_SLOT",
+      "optional": false
+    },
+    "DATE_VALUE_SLOT": {
+      "type": "string",
+      "source": "column_values",
+      "source_column": "TIME_COL",
+      "optional": false
+    },
+    "INT_SLOT": {
+      "type": "int",
+      "default": 5,
+      "min": 1,
+      "max": 10,
+      "optional": false
+    }
+  },
+
+  "feature_pool": {
+    "exclude_target": true,
+    "exclude_kinds": ["id_no"],
+    "exclude_dtypes": ["empty"]
+  },
+
+  "requirements": [
+    {
+      "type": "min_feature_count",
+      "min": 5
+    },
+    {
+      "type": "min_count_by_kind",
+      "kind": "categorical",
+      "min": 1
+    },
+    {
+      "type": "min_count_by_dtype",
+      "dtype": "date",
+      "min": 1
+    },
+    {
+      "type": "min_count_by_dtype_any_of",
+      "dtypes": ["int", "float"],
+      "min": 1
+    }
+  ]
+}

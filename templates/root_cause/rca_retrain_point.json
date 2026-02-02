@@ -1,0 +1,40 @@
+{
+  "template_id": "rca_retrain_point_v0",
+  "category": "Root Cause Analysis",
+  "answer_format": "row",
+  "question": "Column {OUTCOME_COL} is a model’s output score over the rows in this table. Should the model be retrained? Return exactly one of: YES, NO. If YES, return the earliest {ORDER_COL} value after which retraining is warranted.",
+
+  "slots": {
+    "OUTCOME_COL": {
+      "type": "column",
+      "source": "dataset.target",
+      "kind_any_of": ["regression"],
+      "dtype_any_of": ["int", "float"],
+      "unique_count_min": 2
+    },
+    "ORDER_COL": {
+      "type": "column",
+      "kind_any_of": ["id_no", "categorical"],
+      "dtype_any_of": ["int", "date", "datetime"],
+      "unique_count_min": 2
+    }
+  },
+
+  "feature_pool": {
+    "exclude_target": true,
+    "exclude_kinds": ["id_no"],
+    "exclude_dtypes": ["empty"]
+  },
+
+  "requirements": [
+    {
+      "type": "min_feature_count",
+      "min": 5
+    },
+    {
+      "type": "min_count_by_dtype",
+      "dtype": "int",
+      "min": 1
+    }
+  ]
+}

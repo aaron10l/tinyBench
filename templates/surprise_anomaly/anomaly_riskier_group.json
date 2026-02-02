@@ -1,0 +1,50 @@
+{
+  "template_id": "anomaly_riskier_group_v0",
+  "category": "Surprise / Anomaly Detection",
+  "answer_format": "categorical",
+  "question": "Between groups {GROUP_A} and {GROUP_B} (defined by {GROUP_COL}), which group should be treated as higher risk with respect to {RISK_METRIC_COL}? Return exactly one group name.",
+
+  "slots": {
+    "GROUP_COL": {
+      "type": "column",
+      "kind_any_of": ["binary", "categorical"],
+      "dtype_any_of": ["bool", "int", "string"],
+      "unique_count_min": 2
+    },
+    "RISK_METRIC_COL": {
+      "type": "column",
+      "source": "dataset.target",
+      "kind_any_of": ["regression"],
+      "dtype_any_of": ["int", "float"],
+      "unique_count_min": 2
+    },
+    "GROUP_A": {
+      "type": "string",
+      "source": "column_values",
+      "source_column": "GROUP_COL"
+    },
+    "GROUP_B": {
+      "type": "string",
+      "source": "column_values",
+      "source_column": "GROUP_COL"
+    }
+  },
+
+  "feature_pool": {
+    "exclude_target": true,
+    "exclude_kinds": ["id_no"],
+    "exclude_dtypes": ["empty"]
+  },
+
+  "requirements": [
+    {
+      "type": "min_feature_count",
+      "min": 5
+    },
+    {
+      "type": "min_count_by_kind",
+      "kind": "categorical",
+      "min": 1
+    }
+  ]
+}
