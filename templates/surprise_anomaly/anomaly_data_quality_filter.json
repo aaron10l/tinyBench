@@ -21,6 +21,15 @@
     "exclude_dtypes": ["empty"]
   },
 
+  "phenomena": [
+    {
+      "injector": "bad_rows_injection",
+      "param_mapping": {
+        "outcome_col": "{OUTCOME_COL}"
+      }
+    }
+  ],
+
   "requirements": [
     {
       "type": "min_feature_count",

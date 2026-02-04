@@ -23,6 +23,15 @@
     "exclude_target": true
   },
 
+  "phenomena": [
+    {
+      "injector": "leakage_injection",
+      "param_mapping": {
+        "target_col": "{OUTCOME_COL}"
+      }
+    }
+  ],
+
   "requirements": [
     {
       "type": "min_feature_count",

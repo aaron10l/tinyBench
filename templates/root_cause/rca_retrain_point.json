@@ -26,6 +26,16 @@
     "exclude_dtypes": ["empty"]
   },
 
+  "phenomena": [
+    {
+      "injector": "changepoint_injection",
+      "param_mapping": {
+        "pred_col": "{OUTCOME_COL}",
+        "order_col": "{ORDER_COL}"
+      }
+    }
+  ],
+
   "requirements": [
     {
       "type": "min_feature_count",

@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import csv
+import dataclasses
 import json
 from pathlib import Path
 from typing import Dict, List, Any
@@ -262,6 +265,49 @@ def check_requirements(template: Dict[str, Any], summary: Dict[str, Any]) -> tup
                 reasons.append(f"Requires at least {min_count} columns of dtype {dtypes}, but dataset has {actual_count}")
     
     return (len(reasons) == 0, reasons, slot_matches)
+
+@dataclasses.dataclass
+class TemplateMatch:
+    template: Dict[str, Any]
+    template_path: Path
+    is_compatible: bool
+    reasons: List[str]
+    slot_assignments: Dict[str, str]
+    feature_pool: List[str]
+    rendered_question: str
+
+
+def get_template_matches(
+    summary_path: Path,
+    dataset_path: Path,
+    templates_dir: Path,
+) -> List[TemplateMatch]:
+    """Return a list of TemplateMatch objects for all templates."""
+    summary = load_dataset_summary(summary_path)
+    templates = load_templates(templates_dir)
+    columns = summary.get("columns", {})
+    target = summary.get("target", "")
+
+    matches: List[TemplateMatch] = []
+    for template_path, template in templates:
+        is_compatible, reasons, assignments = assign_slot_values(
+            template, summary, dataset_path,
+        )
+        fp = _get_feature_pool(
+            columns, target, template.get("feature_pool", {}),
+        )
+        rendered = _render_question(template.get("question", ""), assignments)
+        matches.append(TemplateMatch(
+            template=template,
+            template_path=template_path,
+            is_compatible=is_compatible,
+            reasons=reasons,
+            slot_assignments=assignments,
+            feature_pool=fp,
+            rendered_question=rendered,
+        ))
+    return matches
+
 
 def find_applicable_templates(summary_path: Path, templates_dir: Path) -> List[tuple[Path, Dict]]:
     """

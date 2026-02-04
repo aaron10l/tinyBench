@@ -36,6 +36,16 @@
     "exclude_dtypes": ["empty"]
   },
 
+  "phenomena": [
+    {
+      "injector": "heteroskedastic_injection",
+      "param_mapping": {
+        "group_col": "{GROUP_COL}",
+        "metric_col": "{RISK_METRIC_COL}"
+      }
+    }
+  ],
+
   "requirements": [
     {
       "type": "min_feature_count",

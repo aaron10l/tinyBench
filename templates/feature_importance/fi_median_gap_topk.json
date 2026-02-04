@@ -20,6 +20,15 @@
     "exclude_dtypes": ["empty", "date", "datetime"]
   },
 
+  "phenomena": [
+    {
+      "injector": "unit_scale_injection",
+      "param_mapping": {
+        "outcome_col": "{OUTCOME_COL}"
+      }
+    }
+  ],
+
   "requirements": [
     {
       "type": "min_feature_count",

@@ -31,6 +31,16 @@
     "exclude_dtypes": ["empty"]
   },
 
+  "phenomena": [
+    {
+      "injector": "simpsons_paradox_injection",
+      "param_mapping": {
+        "outcome_col": "{OUTCOME_COL}",
+        "time_col": "{TIME_COL}"
+      }
+    }
+  ],
+
   "requirements": [
     {
       "type": "min_feature_count",

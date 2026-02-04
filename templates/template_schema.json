@@ -48,6 +48,15 @@
     "exclude_dtypes": ["empty"]
   },
 
+  "phenomena": [
+    {
+      "injector": "string_injector_type",
+      "param_mapping": {
+        "param_name": "{SLOT_NAME_or_literal}"
+      }
+    }
+  ],
+
   "requirements": [
     {
       "type": "min_feature_count",

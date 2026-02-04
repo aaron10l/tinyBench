@@ -114,5 +114,5 @@
     }
   },
   "dataset": "bike_sharing_10000.csv",
-  "target": ""
+  "target": "cnt"
 }
