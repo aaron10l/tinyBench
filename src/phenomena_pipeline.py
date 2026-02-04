@@ -5,12 +5,16 @@ assignments, applies phenomena injections, and generates QA pairs.
 
 Usage:
     python src/phenomena_pipeline.py --summary data/standardized/summaries/bike_sharing_10000.json --seed 42
+
+TODO: 
+- Fix cause of FutureWarning: Setting an item of incompatible dtype is deprecated. Currently suppressing with warnings.filterwarnings.
 """
 from __future__ import annotations
 
 import argparse
 import dataclasses
 import re
+import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
@@ -308,6 +312,11 @@ def build_instance(
 # ---------------------------------------------------------------------------
 
 def main() -> None:
+    warnings.filterwarnings(
+        "ignore",
+        message="Setting an item of incompatible dtype is deprecated.*",
+        category=FutureWarning,
+    )
     parser = argparse.ArgumentParser(description="Phenomena injection pipeline")
     parser.add_argument(
         "--summary",
