@@ -25,7 +25,7 @@
 
   "phenomena": [
     {
-      "injector": "leakage_injection",
+      "injector": "name_swap_injection",
       "param_mapping": {
         "target_col": "{OUTCOME_COL}"
       }
