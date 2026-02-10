@@ -18,10 +18,18 @@
       "dtype_any_of": ["int", "date", "datetime", "string"],
       "unique_count_min": 2
     },
+    "GROUP_COL": {
+      "type": "column",
+      "kind_any_of": ["binary", "categorical"],
+      "dtype_any_of": ["bool", "int", "string"],
+      "unique_count_min": 2,
+      "unique_count_max": 20
+    },
     "SPECIFIC_DATE": {
       "type": "string",
       "source": "column_values",
-      "source_column": "TIME_COL"
+      "source_column": "TIME_COL",
+      "position": "middle"
     }
   },
 
@@ -36,7 +44,9 @@
       "injector": "simpsons_paradox_injection",
       "param_mapping": {
         "outcome_col": "{OUTCOME_COL}",
-        "time_col": "{TIME_COL}"
+        "time_col": "{TIME_COL}",
+        "group_col": "{GROUP_COL}",
+        "specific_date": "{SPECIFIC_DATE}"
       }
     }
   ],
