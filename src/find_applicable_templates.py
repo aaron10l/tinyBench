@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import dataclasses
 import json
+import random
 from pathlib import Path
 from typing import Dict, List, Any
 
@@ -138,10 +139,19 @@ def assign_slot_values(
         if not source_column:
             continue
         candidates = values_by_column.get(source_column, [])
-        chosen = next((val for val in candidates if val not in used_values[source_column]), None)
-        if chosen is not None:
-            assigned[slot_name] = chosen
-            used_values[source_column].add(chosen)
+        available = [val for val in candidates if val not in used_values[source_column]]
+        if not available:
+            continue
+
+        # Determine which position to pick from
+        position = slot_spec.get("position", "random")
+        if position == "middle":
+            chosen = available[len(available) // 2]
+        else:  # "random" or default
+            chosen = random.choice(available)
+
+        assigned[slot_name] = chosen
+        used_values[source_column].add(chosen)
 
     # Fill scalar slots (int/float/string) with defaults
     for slot_name, slot_spec in slots.items():
