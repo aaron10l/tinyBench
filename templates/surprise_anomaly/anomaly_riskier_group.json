@@ -41,7 +41,9 @@
       "injector": "heteroskedastic_injection",
       "param_mapping": {
         "group_col": "{GROUP_COL}",
-        "metric_col": "{RISK_METRIC_COL}"
+        "metric_col": "{RISK_METRIC_COL}",
+        "group_a": "{GROUP_A}",
+        "group_b": "{GROUP_B}"
       }
     }
   ],
