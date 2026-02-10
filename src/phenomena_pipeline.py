@@ -321,8 +321,8 @@ def main() -> None:
     parser.add_argument(
         "--summary",
         type=str,
-        required=True,
-        help="Path to dataset summary JSON",
+        default=None,
+        help="Path to dataset summary JSON. If omitted, runs on all summaries in data/standardized/summaries/.",
     )
     parser.add_argument(
         "--templates-dir",
@@ -337,7 +337,21 @@ def main() -> None:
         help="Random seed",
     )
     args = parser.parse_args()
-    build_instance(args.summary, args.seed, args.templates_dir)
+
+    if args.summary:
+        build_instance(args.summary, args.seed, args.templates_dir)
+    else:
+        summaries_dir = Path("data/standardized/summaries")
+        summary_files = sorted(summaries_dir.glob("*.json"))
+        if not summary_files:
+            print(f"No summary files found in {summaries_dir}")
+            return
+        print(f"Running on {len(summary_files)} summary file(s) in {summaries_dir}\n")
+        for summary_path in summary_files:
+            print(f"{'='*60}")
+            print(f"Processing: {summary_path.name}")
+            print(f"{'='*60}")
+            build_instance(str(summary_path), args.seed, args.templates_dir)
 
 
 if __name__ == "__main__":
