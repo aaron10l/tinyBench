@@ -3,6 +3,12 @@
 After row t, makes a prediction column depend on an interaction
 (XOR-like, piecewise, multiplicative) of two features while keeping
 the marginal mean roughly constant.
+
+post change rows outcome col is overwrriten with:
+  new_value = pre_mean + (xor_signal - mean(xor_signal)) * 1.5 * pre_std + noise
+
+TODO:
+- Move selection of features for XOR signal to be done upstream of this injector.
 """
 from __future__ import annotations
 
