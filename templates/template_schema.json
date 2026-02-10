@@ -25,12 +25,14 @@
       "type": "string",
       "source": "column_values",
       "source_column": "COLUMN_SLOT",
+      "position": "random",
       "optional": false
     },
     "DATE_VALUE_SLOT": {
       "type": "string",
       "source": "column_values",
       "source_column": "TIME_COL",
+      "position": "middle",
       "optional": false
     },
     "INT_SLOT": {
