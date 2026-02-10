@@ -14,9 +14,15 @@
     },
     "ORDER_COL": {
       "type": "column",
-      "kind_any_of": ["id_no", "categorical"],
-      "dtype_any_of": ["int", "date", "datetime"],
+      "kind_any_of": ["id_no"],
+      "dtype_any_of": ["int", "float"],
       "unique_count_min": 2
+    },
+    "SPECIFIC_ROW_ID": {
+      "type": "int",
+      "source": "column_values",
+      "source_column": "ORDER_COL",
+      "position": "random"
     }
   },
 
@@ -31,7 +37,8 @@
       "injector": "changepoint_injection",
       "param_mapping": {
         "pred_col": "{OUTCOME_COL}",
-        "order_col": "{ORDER_COL}"
+        "order_col": "{ORDER_COL}",
+        "specific_row_id": "{SPECIFIC_ROW_ID}"
       }
     }
   ],
