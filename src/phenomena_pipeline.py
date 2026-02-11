@@ -201,12 +201,40 @@ def _get_templates_for_phenomenon(
     return result
 
 
+def _fmt_params(params: dict, max_len: int = 50) -> str:
+    """Format params dict as compact key=val string, truncated if needed."""
+    parts = [f"{k}={v}" for k, v in params.items()]
+    s = ", ".join(parts)
+    if len(s) > max_len:
+        s = s[: max_len - 3] + "..."
+    return s
+
+
+def _print_table(headers: List[str], rows: List[List[str]]) -> None:
+    """Print a simple aligned table with box-drawing borders."""
+    col_widths = [len(h) for h in headers]
+    for row in rows:
+        for i, cell in enumerate(row):
+            col_widths[i] = max(col_widths[i], len(cell))
+
+    def fmt_row(cells: List[str]) -> str:
+        padded = [c.ljust(col_widths[i]) for i, c in enumerate(cells)]
+        return "  " + "  ".join(padded)
+
+    divider = "  " + "  ".join("-" * w for w in col_widths)
+
+    print(fmt_row(headers))
+    print(divider)
+    for row in rows:
+        print(fmt_row(row))
+
+
 def build_instance(
     summary_path: str | Path,
     seed: int,
     templates_dir: str | Path = "templates",
 ) -> List[Path]:
-    """Full pipeline: load → match → inject one phenomenon per instance → QA → save.
+    """Full pipeline: load -> match -> inject one phenomenon per instance -> QA -> save.
 
     Creates one output directory per phenomenon, each with its own table.csv
     containing only that single phenomenon injection.
@@ -229,25 +257,17 @@ def build_instance(
     matches = get_template_matches(summary_path, base_dataset, templates_dir)
 
     compatible = [m for m in matches if m.is_compatible]
-    print(f"Found {len(compatible)} compatible templates out of {len(matches)} total")
-    for m in compatible:
-        print(f"  - {m.template['template_id']}")
 
     # 3. Collect required phenomena
     phenomena_specs = collect_required_phenomena(matches)
 
-    print(f"\nPhenomena to inject ({len(phenomena_specs)}):")
-    for spec in phenomena_specs:
-        print(f"  - {spec['type']}: {spec['params']}")
-
     # 4. Create one instance per phenomenon
     output_dirs: List[Path] = []
+    table_rows: List[List[str]] = []
 
     for i, spec in enumerate(phenomena_specs):
         injector_type = spec["type"]
         params = spec["params"]
-
-        print(f"\n--- Creating instance for: {injector_type} ---")
 
         # Start from fresh copy of original data
         df = df_original.copy()
@@ -258,7 +278,7 @@ def build_instance(
         # Run single injection
         inject_fn = INJECT_FN.get(injector_type)
         if inject_fn is None:
-            print(f"Warning: unknown injector '{injector_type}', skipping")
+            table_rows.append([injector_type, "-", _fmt_params(params), "SKIP"])
             continue
 
         df_injected, phenom_dict = inject_fn(df, params, rng)
@@ -299,11 +319,17 @@ def build_instance(
         save_json(manifest, out_dir / "manifest.json")
         save_json(qa_pairs, out_dir / "questions_and_answers.json")
 
-        print(f"  Saved to {out_dir}")
-        print(f"  Templates: {[m.template['template_id'] for m in relevant_matches]}")
+        template_ids = ", ".join(m.template["template_id"] for m in relevant_matches)
+        table_rows.append([injector_type, template_ids, _fmt_params(params), "OK"])
         output_dirs.append(out_dir)
 
-    print(f"\nCreated {len(output_dirs)} instance(s)")
+    # Print compact summary
+    print(f"\n{dataset_name}  ({len(compatible)}/{len(matches)} templates, seed {seed})")
+    _print_table(
+        ["Injector", "Template", "Params", "Status"],
+        table_rows,
+    )
+
     return output_dirs
 
 
@@ -346,11 +372,7 @@ def main() -> None:
         if not summary_files:
             print(f"No summary files found in {summaries_dir}")
             return
-        print(f"Running on {len(summary_files)} summary file(s) in {summaries_dir}\n")
         for summary_path in summary_files:
-            print(f"{'='*60}")
-            print(f"Processing: {summary_path.name}")
-            print(f"{'='*60}")
             build_instance(str(summary_path), args.seed, args.templates_dir)
 
 
