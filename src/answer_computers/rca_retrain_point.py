@@ -4,4 +4,6 @@ import pandas as pd
 
 
 def compute_answer(df: pd.DataFrame, slot_assignments: dict, effects: dict) -> Any:
-    raise NotImplementedError("Answer computation not yet implemented for rca_retrain_point")
+    inj = effects["changepoint_injection"]
+    change_row_id = inj["change_row_id"]
+    return f"YES, {change_row_id}"

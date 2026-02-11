@@ -4,4 +4,5 @@ import pandas as pd
 
 
 def compute_answer(df: pd.DataFrame, slot_assignments: dict, effects: dict) -> Any:
-    raise NotImplementedError("Answer computation not yet implemented for anomaly_data_quality_filter")
+    inj = effects["bad_rows_injection"]
+    return inj["indicator_col"]
