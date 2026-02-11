@@ -62,7 +62,7 @@ def inject(
         new_values = np.rint(new_values).astype(float)
     df.iloc[bad_indices, df.columns.get_loc(outcome_col)] = new_values
 
-    print(f"[bad_rows_injection] Modified rows: {n_bad}")
+    # print(f"[bad_rows_injection] Modified rows: {n_bad}")
 
     effects = {
         "indicator_col": indicator_col,
