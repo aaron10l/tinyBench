@@ -1,0 +1,87 @@
+{
+  "by_kind": {
+    "binary": [],
+    "categorical": [
+      "Genre",
+      "Name",
+      "Platform",
+      "Publisher",
+      "Year"
+    ],
+    "id_no": [
+      "Rank",
+      "row_id"
+    ],
+    "regression": [
+      "EU_Sales",
+      "Global_Sales",
+      "JP_Sales",
+      "NA_Sales",
+      "Other_Sales"
+    ]
+  },
+  "columns": {
+    "EU_Sales": {
+      "dtype": "float",
+      "kind": "regression",
+      "unique_count": 45
+    },
+    "Genre": {
+      "dtype": "string",
+      "kind": "categorical",
+      "unique_count": 12
+    },
+    "Global_Sales": {
+      "dtype": "float",
+      "kind": "regression",
+      "unique_count": 65
+    },
+    "JP_Sales": {
+      "dtype": "float",
+      "kind": "regression",
+      "unique_count": 22
+    },
+    "NA_Sales": {
+      "dtype": "float",
+      "kind": "regression",
+      "unique_count": 51
+    },
+    "Name": {
+      "dtype": "string",
+      "kind": "categorical",
+      "unique_count": 98
+    },
+    "Other_Sales": {
+      "dtype": "float",
+      "kind": "regression",
+      "unique_count": 21
+    },
+    "Platform": {
+      "dtype": "string",
+      "kind": "categorical",
+      "unique_count": 20
+    },
+    "Publisher": {
+      "dtype": "string",
+      "kind": "categorical",
+      "unique_count": 47
+    },
+    "Rank": {
+      "dtype": "int",
+      "kind": "id_no",
+      "unique_count": 100
+    },
+    "Year": {
+      "dtype": "int",
+      "kind": "categorical",
+      "unique_count": 23
+    },
+    "row_id": {
+      "dtype": "int",
+      "kind": "id_no",
+      "unique_count": 100
+    }
+  },
+  "dataset": "vgsales_10000.csv",
+  "target": "Global_Sales"
+}
