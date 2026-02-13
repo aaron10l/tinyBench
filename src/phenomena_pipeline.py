@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import hashlib
 import re
 import warnings
 from pathlib import Path
@@ -137,7 +138,8 @@ def _compute_answer_safe(
         return None
     try:
         return compute_fn(df, slot_assignments, effects)
-    except NotImplementedError:
+    except Exception as exc:
+        print(f"  Warning: answer computer {template_id} failed: {str(exc)[:80]}")
         return None
 
 
@@ -254,7 +256,7 @@ def build_instance(
     df_original = load_csv(base_dataset)
 
     # 2. Get template matches
-    matches = get_template_matches(summary_path, base_dataset, templates_dir)
+    matches = get_template_matches(summary_path, base_dataset, templates_dir, seed=seed)
 
     compatible = [m for m in matches if m.is_compatible]
 
@@ -265,15 +267,17 @@ def build_instance(
     output_dirs: List[Path] = []
     table_rows: List[List[str]] = []
 
-    for i, spec in enumerate(phenomena_specs):
+    for spec in phenomena_specs:
         injector_type = spec["type"]
         params = spec["params"]
 
         # Start from fresh copy of original data
         df = df_original.copy()
 
-        # Create a fresh RNG for this instance (deterministic based on seed + index)
-        rng = np.random.default_rng(seed + i)
+        # Create a fresh RNG deterministically from seed + injector identity
+        rng_key = f"{seed}:{injector_type}:{sorted(params.items())}"
+        rng_seed = int(hashlib.md5(rng_key.encode()).hexdigest(), 16) % (2**31)
+        rng = np.random.default_rng(rng_seed)
 
         # Run single injection
         inject_fn = INJECT_FN.get(injector_type)
@@ -281,7 +285,13 @@ def build_instance(
             table_rows.append([injector_type, "-", _fmt_params(params), "SKIP"])
             continue
 
-        df_injected, phenom_dict = inject_fn(df, params, rng)
+        try:
+            df_injected, phenom_dict = inject_fn(df, params, rng)
+        except Exception as exc:
+            reason = str(exc)[:30] + "..." if len(str(exc)) > 60 else str(exc)
+            table_rows.append([injector_type, "-", _fmt_params(params), f"SKIP ({reason})"])
+            continue
+
         phenom_result = PhenomenaResult(
             injector_type=phenom_dict["type"],
             params=phenom_dict["params"],

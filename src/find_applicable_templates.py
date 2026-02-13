@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import dataclasses
 import json
+import hashlib
 import random
 from pathlib import Path
 from typing import Dict, List, Any
@@ -291,8 +292,12 @@ def get_template_matches(
     summary_path: Path,
     dataset_path: Path,
     templates_dir: Path,
+    seed: int = 42,
 ) -> List[TemplateMatch]:
     """Return a list of TemplateMatch objects for all templates."""
+    # Seed Python's random module for deterministic slot assignment
+    path_hash = int(hashlib.md5(str(summary_path).encode()).hexdigest(), 16) % (2**31)
+    random.seed(seed + path_hash)
     summary = load_dataset_summary(summary_path)
     templates = load_templates(templates_dir)
     columns = summary.get("columns", {})
