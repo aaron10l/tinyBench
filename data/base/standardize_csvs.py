@@ -58,7 +58,7 @@ def main() -> None:
     base_dir = Path(__file__).parent
     standardized_dir = base_dir.parent / "standardized"
     standardized_dir.mkdir(parents=True, exist_ok=True)
-    limit = 10_000
+    limit = 1000
 
     for csv_path in base_dir.glob("*.csv"):
         rows, fieldnames = _read_rows(csv_path, limit=limit)
