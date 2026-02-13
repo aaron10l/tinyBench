@@ -1,0 +1,288 @@
+[
+  {
+    "dataset": "bike_sharing_100",
+    "injector": "simpsons_paradox_injection",
+    "template_id": "rca_performance_improve_v0",
+    "model": "llama3.2:3b",
+    "question": "Between period A and period B (defined by before and after 2011-01-03 in dteday), did cnt improve, worsen, or stay about the same? Return exactly one of: IMPROVED, WORSENED, UNCHANGED.",
+    "expected_answer": "IMPROVED",
+    "model_answer": "WORSENED",
+    "answer_format": "categorical"
+  },
+  {
+    "dataset": "bike_sharing_100",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "llama3.2:3b",
+    "question": "Which columns matter most for understanding or predicting cnt? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "var_gkmp",
+      "var_wb8o",
+      "m_lv2o",
+      "feat_jphe",
+      "field_j9up"
+    ],
+    "model_answer": "After analyzing the data, I've identified the top 5 features that matter most for understanding or predicting `cnt`. Here they are, along with a brief justification:\n\n1. **date** (25.6% of variance explained)\nThe date column is strongly correlated with `cnt`, indicating that the number of occurrences changes over time. This suggests that there may be seasonal or daily fluctuations in the data that need to be accounted for.\n2. **avg** (15.4% of variance explained)\nThe average column appears to have a moderate correlation with `cnt`. This could indicate that the mean value of the data is related to the number of occurrences, perhaps due to changes in baseline values or scaling.\n3. **stdev** (10.9% of variance explained)\nStandard deviation is also moderately correlated with `cnt`, suggesting that the spread or variability of the data may be related to the number of occurrences.\n4. **var** (6.5% of variance explained)\nVariance, a measure of dispersion, shows a weak correlation with `cnt`. This might indicate that changes in variance are not strongly linked to changes in the number of occurrences.\n5. **skewness** (3.9% of variance explained)\nSkewness, which measures the asymmetry of the data distribution, has a very weak correlation with `cnt`. While it may provide some insight into the shape of the distribution, its relationship to `cnt` is not strong.\n\nThese findings are based on visual inspection and simple summary statistics. Further analysis, such as dimensionality reduction or modeling, might be necessary to fully understand the relationships between these features and `cnt`.\n\nNote that the percentages represent the proportion of variance explained by each feature in a regression model (not shown here). The actual values may vary depending on the specific analysis and methodology used.",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "bike_sharing_100",
+    "injector": "bad_rows_injection",
+    "template_id": "anomaly_data_quality_filter_v0",
+    "model": "llama3.2:3b",
+    "question": "You can apply exactly one rule based on a single column to exclude problematic rows before analyzing cnt. Which column should the rule be based on? Return a single column name.",
+    "expected_answer": "_check_flag",
+    "model_answer": "The best answer is B",
+    "answer_format": "categorical"
+  },
+  {
+    "dataset": "bike_sharing_100",
+    "injector": "heteroskedastic_injection",
+    "template_id": "anomaly_riskier_group_v0",
+    "model": "llama3.2:3b",
+    "question": "Between groups 15 and 12 (defined by hr), which group should be treated as higher risk with respect to cnt? Return exactly one group name.",
+    "expected_answer": "15",
+    "model_answer": "Based on the data, between groups 15 and 12, group 15 has a significantly lower value of `cnt` (313.81219635487463) compared to group 12 (2791). Therefore, group 15 should be treated as the higher risk group with respect to `cnt`.",
+    "answer_format": "categorical"
+  },
+  {
+    "dataset": "vgsales_100",
+    "injector": "simpsons_paradox_injection",
+    "template_id": "rca_performance_improve_v0",
+    "model": "llama3.2:3b",
+    "question": "Between period A and period B (defined by before and after Puzzle in Genre), did Global_Sales improve, worsen, or stay about the same? Return exactly one of: IMPROVED, WORSENED, UNCHANGED.",
+    "expected_answer": "IMPROVED",
+    "model_answer": "UNCHANGED",
+    "answer_format": "categorical"
+  },
+  {
+    "dataset": "bike_sharing_100",
+    "injector": "changepoint_injection",
+    "template_id": "rca_retrain_point_v0",
+    "model": "llama3.2:3b",
+    "question": "Column cnt is a model\u2019s output score over the rows in this table. Should the model be retrained? Return exactly one of: YES, NO. If YES, return the earliest row_id value after which retraining is warranted.",
+    "expected_answer": "YES, 32",
+    "model_answer": "Based on the provided data, I would recommend retraining the model. The reason for this decision lies in the rapid growth and variation in values as we move down the table.\n\nHowever, instead of directly answering with \"YES,\" it's more informative to pinpoint the row where this significant change starts happening consistently. Looking at the column `cnt`, if we start from the top (row 1) and look for a point after which all subsequent rows show significantly higher values compared to the previous ones, we can determine that.\n\nUpon inspection, starting from row 4, it appears that the `cnt` values begin to grow substantially but do so in a patterned manner. However, without more information about the model's performance or expectations (such as threshold values for acceptable accuracy), pinpointing exactly when retraining is warranted based solely on column `cnt` growth becomes speculative.\n\nTo follow your instructions and provide an answer that fits within the \"YES, NO\" format but still addresses the issue of whether retraining is needed and points to a significant change if so:\n\nThe model should be retrained because it's observed in row 4 that the values begin to grow substantially. However, since you've requested an exact match for your answer format which doesn't seem to align with providing additional context or justifying further analysis beyond this point:\n\n**Row ID after which retraining is warranted**: 4\n\nKeep in mind that without more specific criteria or benchmark data on model performance (like accuracy levels), one might argue against retraining at row 4 based solely on the growth of `cnt` values. Retraining could be considered justified if there's a clear drop-off in performance that aligns with this significant increase, but such a condition isn't explicitly stated here.",
+    "answer_format": "row"
+  },
+  {
+    "dataset": "vgsales_100",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "llama3.2:3b",
+    "question": "Which columns matter most for understanding or predicting Global_Sales? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "f_uxcq",
+      "val_4x0c",
+      "attr_god9",
+      "x_gynd",
+      "x_n36h"
+    ],
+    "model_answer": "1. m_02hj (Release Date)\n2. feat_jupx (Genre)\n3. val_4x0c (Platform)\n4. Global_Sales\n5. x_n36h (Age at Release)",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "vgsales_100",
+    "injector": "bad_rows_injection",
+    "template_id": "anomaly_data_quality_filter_v0",
+    "model": "llama3.2:3b",
+    "question": "You can apply exactly one rule based on a single column to exclude problematic rows before analyzing Global_Sales. Which column should the rule be based on? Return a single column name.",
+    "expected_answer": "_check_flag",
+    "model_answer": "In order to determine which column to base the exclusion rule on, we need to identify the column that has the most variation and is most likely to introduce outliers or errors into the data.\n\nAfter examining the dataset, I would recommend excluding the 'Rank' column as the basis for our rule, since it represents a subjective ranking of games based on various criteria, rather than an objective measure. This column is also more susceptible to errors or biases in the data collection process.\n\nExcluding rows based on the 'Rank' column could help to reduce noise and anomalies in the dataset, allowing us to focus on the most reliable and accurate data points when analyzing Global_Sales.\n\nTherefore, I would suggest excluding the 'Rank' column from our analysis.",
+    "answer_format": "categorical"
+  },
+  {
+    "dataset": "vgsales_100",
+    "injector": "changepoint_injection",
+    "template_id": "rca_retrain_point_v0",
+    "model": "llama3.2:3b",
+    "question": "Column Global_Sales is a model\u2019s output score over the rows in this table. Should the model be retrained? Return exactly one of: YES, NO. If YES, return the earliest row_id value after which retraining is warranted.",
+    "expected_answer": "YES, 75",
+    "model_answer": "YES\n5",
+    "answer_format": "row"
+  },
+  {
+    "dataset": "bike_sharing_500",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "llama3.2:3b",
+    "question": "Which columns matter most for understanding or predicting cnt? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "var_gkmp",
+      "var_wb8o",
+      "m_lv2o",
+      "feat_jphe",
+      "field_03nh"
+    ],
+    "model_answer": "Based on the provided data, I've analyzed the correlation between each column and the target variable `cnt`. Here are the top 5 feature names that matter most for understanding or predicting `cnt`, along with a brief justification:\n\n1. **Day of Week** (Column: `dayofweek`)\n\t* Justification: The distribution of `cnt` values varies significantly across different days of the week, with peaks on weekdays (Monday to Friday) and lower values on weekends.\n2. **Hour of Day** (Column: `hour`)\n\t* Justification: There's a noticeable pattern in the data where `cnt` increases during peak hours (usually between 12 PM and 4 PM), suggesting that this might be a relevant factor for understanding or predicting `cnt`.\n3. **Temperature** (Column: `temperature`)\n\t* Justification: Temperature appears to have a moderate correlation with `cnt`, particularly in warm weather conditions (i.e., above 75\u00b0F/24\u00b0C).\n4. **Humidity** (Column: `humidity`)\n\t* Justification: Humidity seems to be inversely related to `cnt`, suggesting that lower humidity values might be associated with higher `cnt` values.\n5. **Wind Speed** (Column: `windspeed`)\n\t* Justification: Wind speed has a weak but positive correlation with `cnt`, which may indicate that breezy conditions contribute to increased activity.\n\nThese feature names are ranked based on their strength and consistency of correlation with the target variable `cnt`. Keep in mind that further analysis, such as data preprocessing, feature engineering, or machine learning modeling, would be necessary to fully understand the relationships between these features and `cnt`.\n\nAdditional observations:\n\n* Columns like `dayofmonth`, `month`, and `year` show weaker correlations with `cnt`.\n* Features like `sunrise_time` and `sunset_time` don't seem to have a significant impact on `cnt`.\n* The presence of noise in the data, such as occasional extreme values, may affect the accuracy of predictions based solely on these feature correlations.",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "bike_sharing_500",
+    "injector": "bad_rows_injection",
+    "template_id": "anomaly_data_quality_filter_v0",
+    "model": "llama3.2:3b",
+    "question": "You can apply exactly one rule based on a single column to exclude problematic rows before analyzing cnt. Which column should the rule be based on? Return a single column name.",
+    "expected_answer": "_check_flag",
+    "model_answer": "Based on the data provided, I would recommend excluding rows based on the \"cnt\" column. The presence of missing values in this column suggests that some rows may be inconsistent or incomplete.\n\nTherefore, I propose that the rule be applied to exclude rows with non-zero or missing \"cnt\" values. This can help to reduce noise and inconsistencies in the data before analyzing it further.",
+    "answer_format": "categorical"
+  },
+  {
+    "dataset": "bike_sharing_500",
+    "injector": "changepoint_injection",
+    "template_id": "rca_retrain_point_v0",
+    "model": "llama3.2:3b",
+    "question": "Column cnt is a model\u2019s output score over the rows in this table. Should the model be retrained? Return exactly one of: YES, NO. If YES, return the earliest row_id value after which retraining is warranted.",
+    "expected_answer": "YES, 387",
+    "model_answer": "The model's output score, column `cnt`, has been decreasing steadily from row 480 to row 500, with some fluctuations. The average score around row 500 is approximately -2.8.\n\nTo determine if the model should be retrained, we can consider a few criteria:\n\n1. **Significant drop**: If the model's performance degrades significantly (e.g., more than 20% decrease in accuracy) after a certain point.\n2. **Stable performance**: If the model's performance becomes stable and remains consistent over a period of rows.\n\nGiven the data, it appears that the model's performance has been declining from row 480 onwards, with a noticeable drop in scores around row 495.\n\nBased on this analysis, I would recommend retraining the model. To determine the earliest row_id value after which retraining is warranted, we can consider the following:\n\nLet's define a threshold for the model's performance. If the average score falls below -5, it may be worth retraining.\n\nRow 500 has an average score of approximately -2.8, which is above the threshold. However, the scores around row 495 are significantly lower (-7.2 on average), indicating a potential issue with the model's performance.\n\nThe earliest row_id value after which retraining is warranted is **495**.\n\nReturn: YES\nEarliest_row_id: 495",
+    "answer_format": "row"
+  },
+  {
+    "dataset": "vgsales_500",
+    "injector": "simpsons_paradox_injection",
+    "template_id": "rca_performance_improve_v0",
+    "model": "llama3.2:3b",
+    "question": "Between period A and period B (defined by before and after Racing in Genre), did Global_Sales improve, worsen, or stay about the same? Return exactly one of: IMPROVED, WORSENED, UNCHANGED.",
+    "expected_answer": "IMPROVED",
+    "model_answer": "UNCHANGED. \n\nThe 'Global_Sales' for period A is 2457, and for period B (after racing in genre) it is also 2457. So the Global Sales improved by roughly the same amount or stayed unchanged in comparison to its immediate predecessor.",
+    "answer_format": "categorical"
+  },
+  {
+    "dataset": "vgsales_500",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "llama3.2:3b",
+    "question": "Which columns matter most for understanding or predicting Global_Sales? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "f_uxcq",
+      "val_4x0c",
+      "attr_god9",
+      "x_gynd",
+      "x_n36h"
+    ],
+    "model_answer": "Based on the provided dataset, here are the top 5 features that matter most for understanding or predicting Global_Sales:\n\n1. **Genre** (15.6% of variance explained): The Genre column has the highest correlation with Global_Sales. Most games in the action/adventure and sports genres have higher sales, while games in other genres like puzzle and strategy tend to have lower sales.\n2. **Platform** (13.4% of variance explained): The Platform column is also strongly correlated with Global_Sales. Games released on PlayStation consoles tend to sell more than those released on PC or Nintendo consoles.\n3. **Developer Publisher** (11.1% of variance explained): The Developer_Publisher column has a moderate correlation with Global_Sales. Games developed by well-established studios like Electronic Arts, Ubisoft, or Rockstar often perform better in terms of sales.\n4. **Esports Support** (9.5% of variance explained): The Esports Support column is moderately correlated with Global_Sales. Games that receive significant esports support tend to have higher sales, especially those released on PC platforms.\n5. **Release Year** (8.3% of variance explained): The Release_Year column has a relatively low correlation with Global_Sales compared to the others. However, it's still worth noting that games released in certain years may be more successful due to market trends or shifts in gaming preferences.\n\nThese five features are ranked based on their respective correlation coefficients and variance explained values. Justification is grounded in patterns observed in the table, such as:\n\n* Games in popular genres like action/adventure and sports tend to perform well commercially.\n* Platform releases can impact sales, with PlayStation consoles being particularly successful.\n* Developer Publisher reputation plays a role in predicting game success.\n* Esports support can significantly boost sales, especially for PC games.\n* Release Year is still an important factor, as certain years may see increased demand or trends that favor specific genres or platforms.",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "vgsales_500",
+    "injector": "heteroskedastic_injection",
+    "template_id": "anomaly_riskier_group_v0",
+    "model": "llama3.2:3b",
+    "question": "Between groups Puzzle and Shooter (defined by Genre), which group should be treated as higher risk with respect to Global_Sales? Return exactly one group name.",
+    "expected_answer": "Puzzle",
+    "model_answer": "Shooter",
+    "answer_format": "categorical"
+  },
+  {
+    "dataset": "vgsales_500",
+    "injector": "bad_rows_injection",
+    "template_id": "anomaly_data_quality_filter_v0",
+    "model": "llama3.2:3b",
+    "question": "You can apply exactly one rule based on a single column to exclude problematic rows before analyzing Global_Sales. Which column should the rule be based on? Return a single column name.",
+    "expected_answer": "_check_flag",
+    "model_answer": "Based on the provided data, I would recommend applying the rule to the \"Global_Sales\" column.\n\nThe reason for this is that the Global_Sales column contains the actual sales figures of each game in different regions, and excluding rows with problematic values in this column could help identify and exclude games with invalid or unreliable sales data. This could potentially improve the accuracy of the analysis.\n\nTherefore, applying a rule based on the \"Global_Sales\" column would be an appropriate approach to exclude problematic rows before analyzing Global_Sales.",
+    "answer_format": "categorical"
+  },
+  {
+    "dataset": "vgsales_500",
+    "injector": "changepoint_injection",
+    "template_id": "rca_retrain_point_v0",
+    "model": "llama3.2:3b",
+    "question": "Column Global_Sales is a model\u2019s output score over the rows in this table. Should the model be retrained? Return exactly one of: YES, NO. If YES, return the earliest row_id value after which retraining is warranted.",
+    "expected_answer": "YES, 316",
+    "model_answer": "Based on the provided data and common practices in machine learning, I would recommend the following:\n\nSince there are no specific sales figures or other relevant metrics for the models to learn from, it's difficult to determine a specific threshold for model performance. However, we can look at some general guidelines.\n\nA common rule of thumb is that if the Global_Sales score has decreased by more than 20-30% over time, retraining might be warranted. Without knowing the baseline sales figures or the rate of change, I'll use a more conservative approach.\n\nLet's find the earliest row_id where the decrease in Global_Sales is significant enough to warrant retraining.\n\nAfter analyzing the data, I found that the Global_Sales scores have been generally increasing over time. However, there are some exceptions.\n\nThe earliest row_id with a relatively high decrease in Global_Sales would be around 50, with a score change of approximately -12%.\n\nBased on this analysis, I would recommend retraining the model for rows beyond row_id = 50.\n\nAnswer: NO",
+    "answer_format": "row"
+  },
+  {
+    "dataset": "bike_sharing_1000",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "llama3.2:3b",
+    "question": "Which columns matter most for understanding or predicting cnt? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "var_gkmp",
+      "var_wb8o",
+      "m_lv2o",
+      "feat_jphe",
+      "feat_38m8"
+    ],
+    "model_answer": "After analyzing the table, I've identified the top 5 feature columns that matter most for understanding or predicting `cnt`. Here they are, ranked from most to least important:\n\n1. **cnt** (1st)\n\t* Justification: This is the target variable itself, making it the most relevant and essential feature.\n2. **dayofweek** (2nd)\n\t* Justification: The day of the week appears to have a significant impact on `cnt`, with values often clustering around specific days of the week (e.g., Monday, Tuesday). This suggests that daily patterns or trends may be influencing the data.\n3. **hour** (3rd)\n\t* Justification: Hourly variations in `cnt` suggest that time of day is an important factor. Values tend to increase during certain hours and decrease at others, indicating a potential relationship between hour and `cnt`.\n4. **is_weekend** (4th)\n\t* Justification: The presence or absence of a weekend appears to impact `cnt`, with values often lower on weekends compared to weekdays. This could be due to various factors like reduced economic activity or changes in consumer behavior.\n5. **seasonality** (5th)\n\t* Justification: The data exhibits seasonal patterns, with `cnt` fluctuating over the course of the year. This might indicate regular fluctuations in demand or supply that need to be considered when predicting or understanding `cnt`.\n\nThese rankings are based on visual inspections of the data and general insights about how each feature relates to the target variable. Keep in mind that more detailed analysis, such as correlation analysis or modeling, would provide a more accurate assessment of the importance of these features.\n\nIn terms of justification, I relied on patterns like:\n\n* Clustering: Values tend to cluster around specific days of the week (dayofweek) and hours (hour).\n* Seasonality: Regular fluctuations over the course of the year suggest seasonally-influenced relationships.\n* Patterns in value changes: Hourly variations in `cnt` and weekend vs. weekday differences imply that certain patterns or trends might be driving these values.\n\nThese observations provide a foundation for understanding which features are most closely tied to predicting or explaining the target variable, `cnt`.",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "bike_sharing_1000",
+    "injector": "bad_rows_injection",
+    "template_id": "anomaly_data_quality_filter_v0",
+    "model": "llama3.2:3b",
+    "question": "You can apply exactly one rule based on a single column to exclude problematic rows before analyzing cnt. Which column should the rule be based on? Return a single column name.",
+    "expected_answer": "_check_flag",
+    "model_answer": "Based on the provided data, I would recommend using the `cnt` column as the basis for the exclusion rule. This is because the `cnt` column represents the number of counts or frequencies for each row, and excluding rows with low or suspicious values in this column could help to reduce noise and improve the accuracy of the analysis.\n\nHowever, a more specific answer would be the `cnt` column itself.",
+    "answer_format": "categorical"
+  },
+  {
+    "dataset": "vgsales_1000",
+    "injector": "simpsons_paradox_injection",
+    "template_id": "rca_performance_improve_v0",
+    "model": "llama3.2:3b",
+    "question": "Between period A and period B (defined by before and after Racing in Genre), did Global_Sales improve, worsen, or stay about the same? Return exactly one of: IMPROVED, WORSENED, UNCHANGED.",
+    "expected_answer": "IMPROVED",
+    "model_answer": "Improved",
+    "answer_format": "categorical"
+  },
+  {
+    "dataset": "bike_sharing_1000",
+    "injector": "changepoint_injection",
+    "template_id": "rca_retrain_point_v0",
+    "model": "llama3.2:3b",
+    "question": "Column cnt is a model\u2019s output score over the rows in this table. Should the model be retrained? Return exactly one of: YES, NO. If YES, return the earliest row_id value after which retraining is warranted.",
+    "expected_answer": "YES, 364",
+    "model_answer": "The model's performance can be evaluated by looking at the column 'cnt', which represents the model's output score over time. To determine if the model should be retrained, we need to find out when the model's performance starts to degrade.\n\nLet's calculate the cumulative sum of 'cnt' values and check for significant decreases:\n\n| row_id | cnt |\n| --- | --- |\n| 1    | 0.4 |\n| 2    | 0.6 |\n| ...  | ... |\n| 1000  | 82.4 |\n\nAfter analyzing the data, I found that the model's performance starts to degrade after row ID 700.\n\nTherefore, the answer is:\n\nNO\n Earliest row_id value after which retraining is warranted: 700",
+    "answer_format": "row"
+  },
+  {
+    "dataset": "vgsales_1000",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "llama3.2:3b",
+    "question": "Which columns matter most for understanding or predicting Global_Sales? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "val_4x0c",
+      "x_n36h",
+      "col_8kzm",
+      "attr_god9",
+      "m_d6bp"
+    ],
+    "model_answer": "After analyzing the provided table, I've identified the top 5 features that matter most for understanding or predicting Global_Sales. Here they are, ranked from most to least important:\n\n1. **Genre**: The Genre column has a strong correlation with Global_Sales, as many successful games belong to popular genres like Action, Adventure, and Sports. This feature explains around 25% of the variance in Global_Sales.\n2. **Platform**: The Platform column is also highly relevant, as different platforms tend to attract different types of gamers. For example, consoles tend to perform better than PCs. This feature explains around 20% of the variance in Global_Sales.\n3. **Developer**: The Developer column has a moderate correlation with Global_Sales, as some developers are more successful than others. Notable examples include Electronic Arts (EA) and Rockstar Games. This feature explains around 15% of the variance in Global_Sales.\n4. **Publisher**: The Publisher column is also moderately correlated with Global_Sales, as some publishers have a stronger track record of success than others. For example, Take-Two Interactive and Ubisoft are both well-known for publishing successful games. This feature explains around 10% of the variance in Global_Sales.\n5. **Release Date**: While Release Date has a relatively weak correlation with Global_Sales compared to other features, it can still be important. Games released during holiday seasons or major events tend to perform better than others. This feature explains around 5% of the variance in Global_Sales.\n\nThese rankings are based on the assumption that you want to focus on the most influential factors driving Global_Sales. Genre and Platform are likely to have the greatest impact, as they represent fundamental aspects of a game's appeal and accessibility.",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "vgsales_1000",
+    "injector": "changepoint_injection",
+    "template_id": "rca_retrain_point_v0",
+    "model": "llama3.2:3b",
+    "question": "Column Global_Sales is a model\u2019s output score over the rows in this table. Should the model be retrained? Return exactly one of: YES, NO. If YES, return the earliest Rank value after which retraining is warranted.",
+    "expected_answer": "YES, 873",
+    "model_answer": "NO\n0",
+    "answer_format": "row"
+  },
+  {
+    "dataset": "vgsales_1000",
+    "injector": "heteroskedastic_injection",
+    "template_id": "anomaly_riskier_group_v0",
+    "model": "llama3.2:3b",
+    "question": "Between groups Fighting and Sports (defined by Genre), which group should be treated as higher risk with respect to Global_Sales? Return exactly one group name.",
+    "expected_answer": "Sports",
+    "model_answer": "Fighting",
+    "answer_format": "categorical"
+  },
+  {
+    "dataset": "vgsales_1000",
+    "injector": "bad_rows_injection",
+    "template_id": "anomaly_data_quality_filter_v0",
+    "model": "llama3.2:3b",
+    "question": "You can apply exactly one rule based on a single column to exclude problematic rows before analyzing Global_Sales. Which column should the rule be based on? Return a single column name.",
+    "expected_answer": "_check_flag",
+    "model_answer": "The column that should be used for this rule is `Developer`.\n\nThis is because different developers have different business models and practices, some of which may lead to inflated or inaccurate sales figures, making it difficult to analyze and compare data across different games developed by the same company. By excluding rows based on a specific developer, you can reduce the impact of such anomalies and focus on analyzing data from developers that are more transparent about their reporting practices.",
+    "answer_format": "categorical"
+  }
+]
