@@ -71,6 +71,18 @@ def inject(
             )
 
 
+    # Verify that the group means stayed close enough after random generation
+    vals_risky = df.loc[df[group_col] == risky_group, metric_col].astype(float)
+    vals_safe = df.loc[df[group_col] == safe_group, metric_col].astype(float)
+    pooled_std = pd.concat([vals_risky, vals_safe]).std()
+    if pooled_std > 0:
+        mean_diff = abs(vals_risky.mean() - vals_safe.mean()) / pooled_std
+        if mean_diff > 0.5:
+            raise ValueError(
+                f"Injection skipped: group means drifted too far apart "
+                f"(normalised diff={mean_diff:.4f}, threshold=0.5)"
+            )
+
     effects = {
         "risky_group": str(risky_group),
         "safe_group": str(safe_group),
