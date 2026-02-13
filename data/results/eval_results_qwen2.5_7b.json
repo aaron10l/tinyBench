@@ -1,0 +1,288 @@
+[
+  {
+    "dataset": "bike_sharing_100",
+    "injector": "simpsons_paradox_injection",
+    "template_id": "rca_performance_improve_v0",
+    "model": "qwen2.5:7b",
+    "question": "Between period A and period B (defined by before and after 2011-01-03 in dteday), did cnt improve, worsen, or stay about the same? Return exactly one of: IMPROVED, WORSENED, UNCHANGED.",
+    "expected_answer": "IMPROVED",
+    "model_answer": "To determine if `cnt` improved, worsened, or stayed about the same between period A (before 2011-01-03) and period B (after 2011-01-03), we need to analyze the average values of `cnt` for both periods.\n\nFirstly, let's identify the relevant data points:\n\n### Period A (before 2011-01-03):\nThe dataset includes records from January 1st to January 2nd and before. From the given data, these days are:\n- Jan 1: [57, 60, 61, 62]\n- Jan 2: [63]\n\nAverage `cnt` for Period A:\n\\[\n\\text{Average} = \\frac{(57 + 60 + 61 + 62 + 63)}{5} = \\frac{303}{5} = 60.6\n\\]\n\n### Period B (after 2011-01-03):\nThe dataset includes records from January 4th and after. From the given data, these days are:\n- Jan 4: [70, 72, 76, 79, 82, 85, 86, 88, 89, 92]\n- Jan 5: [94, 97, 98, 99]\n\nAverage `cnt` for Period B:\n\\[\n\\text{Average} = \\frac{(70 + 72 + 76 + 79 + 82 + 85 + 86 + 88 + 89 + 92 + 94 + 97 + 98 + 99)}{14} = \\frac{1230}{14} \\approx 87.86\n\\]\n\n### Comparison:\n- Average `cnt` for Period A: 60.6\n- Average `cnt` for Period B: 87.86\n\nSince the average value of `cnt` increased from 60.6 to 87.86, it can be concluded that `cnt` improved.\n\nThus, the answer is:\n**IMPROVED**",
+    "answer_format": "categorical"
+  },
+  {
+    "dataset": "bike_sharing_100",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "qwen2.5:7b",
+    "question": "Which columns matter most for understanding or predicting cnt? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "var_gkmp",
+      "var_wb8o",
+      "m_lv2o",
+      "feat_jphe",
+      "field_j9up"
+    ],
+    "model_answer": "To determine which columns matter most for understanding or predicting `cnt`, we should focus on those that provide significant insight into the count values. In this dataset, the relevant features are:\n\n1. **`dteday` (date)`** - This column provides temporal information and could be crucial as it might show patterns due to daily cycles, weather conditions, or seasonal trends.\n2. **`hr` (hour of the day)** - The hour can affect how many bikes are taken out depending on peak usage times, such as rush hours.\n3. **`temp` (temperature)** - Temperature is a significant factor in bike-sharing demand; higher temperatures might increase the use of bicycles.\n4. **`windspeed` (wind speed)** - Strong winds could negatively impact bike usage.\n5. **`workingday` (whether day is a working day or not)** - This can affect overall usage as people need bikes for commuting.\n\nThese features are ranked based on their potential to influence bike rental counts, given the context of bike-sharing systems:\n\n1. **`dteday`** - Understanding daily trends and patterns is crucial.\n2. **`hr`** - Identifying peak hours directly impacts count predictions.\n3. **`temp`** - Temperature can significantly affect demand; people prefer biking in warmer weather.\n4. **`windspeed`** - While not as strong, wind speed still plays a role.\n5. **`workingday`** - This provides contextual information on the day type which impacts overall usage.\n\nOther columns like `casual`, `registered`, and others related to user types or member counts can also be informative but are less directly predictive of total count (`cnt`) compared to these features.",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "bike_sharing_100",
+    "injector": "bad_rows_injection",
+    "template_id": "anomaly_data_quality_filter_v0",
+    "model": "qwen2.5:7b",
+    "question": "You can apply exactly one rule based on a single column to exclude problematic rows before analyzing cnt. Which column should the rule be based on? Return a single column name.",
+    "expected_answer": "_check_flag",
+    "model_answer": "Based on the data provided, it seems that column `cnt` has values from 0 up to 212, which is expected for this dataset. However, we can identify some potential problematic rows by looking at other columns.\n\nColumn `y` stands out as a candidate because several rows have `y = 0`, yet their corresponding `cnt` value is greater than 0. This suggests that these rows might be problematic or incorrect, as having `y = 0` while `cnt > 0` does not make logical sense given the context (assuming `y` and `cnt` are related).\n\nTherefore, a rule based on column `y` could help exclude these problematic rows before analyzing `cnt`. \n\n**Column to apply the rule:** `y`",
+    "answer_format": "categorical"
+  },
+  {
+    "dataset": "bike_sharing_100",
+    "injector": "heteroskedastic_injection",
+    "template_id": "anomaly_riskier_group_v0",
+    "model": "qwen2.5:7b",
+    "question": "Between groups 15 and 12 (defined by hr), which group should be treated as higher risk with respect to cnt? Return exactly one group name.",
+    "expected_answer": "15",
+    "model_answer": "group 15",
+    "answer_format": "categorical"
+  },
+  {
+    "dataset": "vgsales_100",
+    "injector": "simpsons_paradox_injection",
+    "template_id": "rca_performance_improve_v0",
+    "model": "qwen2.5:7b",
+    "question": "Between period A and period B (defined by before and after Puzzle in Genre), did Global_Sales improve, worsen, or stay about the same? Return exactly one of: IMPROVED, WORSENED, UNCHANGED.",
+    "expected_answer": "IMPROVED",
+    "model_answer": "UNCHANGED\n\nExplanation:\nTo determine if Global_Sales improved, worsened, or stayed the same between period A (before Puzzle) and period B (after Puzzle), we would need to compare the average Global_Sales for these periods.\n\nLooking at the data before and after \"Puzzle\" genre:\n\nBefore Puzzle (Period A):\nThe last entry before Puzzle is GoldenEye 007 with Global Sales of 5.8.\nAverage Global_Sales: 5.8\n\nAfter Puzzle (Period B):\nThe first entry after Puzzle is Pac-Man with Global Sales of 7.28.\nAverage Global_Sales: 7.28\n\nSince the average Global_Sales slightly improved from 5.8 to 7.28, it might seem like there was improvement. However, considering we are comparing only two points and the significant gap between them:\n\n- GoldenEye 007 is a N64 game released in 1997.\n- Pac-Man is a 2600 game released in 1982.\n\nIt's not accurate to generalize that Global_Sales improved or worsened based on these two data points. Therefore, we conclude that the sales stayed about the same (UNCHANGED) between the defined periods.",
+    "answer_format": "categorical"
+  },
+  {
+    "dataset": "bike_sharing_100",
+    "injector": "changepoint_injection",
+    "template_id": "rca_retrain_point_v0",
+    "model": "qwen2.5:7b",
+    "question": "Column cnt is a model\u2019s output score over the rows in this table. Should the model be retrained? Return exactly one of: YES, NO. If YES, return the earliest row_id value after which retraining is warranted.",
+    "expected_answer": "YES, 32",
+    "model_answer": "NO",
+    "answer_format": "row"
+  },
+  {
+    "dataset": "vgsales_100",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "qwen2.5:7b",
+    "question": "Which columns matter most for understanding or predicting Global_Sales? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "f_uxcq",
+      "val_4x0c",
+      "attr_god9",
+      "x_gynd",
+      "x_n36h"
+    ],
+    "model_answer": "Based on the data provided and common practices in sales prediction models, the following features are likely to be the most important for understanding or predicting Global_Sales:\n\n1. **NA_Sales (North American Sales)** - North America is often a major market for video games, making these sales a significant contributor to global totals.\n2. **EU_Sales (European Sales)** - Europe also plays a crucial role in the gaming industry, especially with large markets like Germany and the UK.\n3. **JP_Sales (Japanese Sales)** - Japan's market is another key region that heavily influences global sales figures due to its size and unique local preferences.\n4. **Other_Sales** - While not as significant as NA, EU, or JP, other regions collectively can still have a noticeable impact on overall global sales.\n5. **Year_of_Release** - The release year of the game could indicate trends in gaming technology, marketing strategies, or broader cultural factors that affect sales.\n\nThese features are ranked based on their direct contribution to the total sales and their potential influence from regional preferences and market dynamics. For instance, NA_Sales is generally larger than EU_Sales, but both together often dominate global figures due to North America's significant size. The inclusion of other regions helps capture variations in demand across different markets, while the release year can account for technological advancements or shifts in consumer behavior over time.",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "vgsales_100",
+    "injector": "bad_rows_injection",
+    "template_id": "anomaly_data_quality_filter_v0",
+    "model": "qwen2.5:7b",
+    "question": "You can apply exactly one rule based on a single column to exclude problematic rows before analyzing Global_Sales. Which column should the rule be based on? Return a single column name.",
+    "expected_answer": "_check_flag",
+    "model_answer": "Global_Sales",
+    "answer_format": "categorical"
+  },
+  {
+    "dataset": "vgsales_100",
+    "injector": "changepoint_injection",
+    "template_id": "rca_retrain_point_v0",
+    "model": "qwen2.5:7b",
+    "question": "Column Global_Sales is a model\u2019s output score over the rows in this table. Should the model be retrained? Return exactly one of: YES, NO. If YES, return the earliest row_id value after which retraining is warranted.",
+    "expected_answer": "YES, 75",
+    "model_answer": "NO",
+    "answer_format": "row"
+  },
+  {
+    "dataset": "bike_sharing_500",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "qwen2.5:7b",
+    "question": "Which columns matter most for understanding or predicting cnt? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "var_gkmp",
+      "var_wb8o",
+      "m_lv2o",
+      "feat_jphe",
+      "field_03nh"
+    ],
+    "model_answer": "Based on the provided data and focusing on \"cnt\" (which likely represents the number of bicycle rentals), several key features stand out as highly influential:\n\n1. **temp**: Temperature is often a crucial factor for predicting bike rental counts because people are more inclined to use bicycles when it's warmer.\n2. **season**: The season can significantly impact cnt, with higher values in summer and spring months due to pleasant weather conditions that encourage outdoor activities.\n3. **humidity**: While less impactful than temp or season, humidity levels can influence cnt by affecting comfort levels during physical activity.\n4. **workingday**: The presence of working days often correlates positively with cnt since more people are commuting to work or running errands on weekdays compared to weekends.\n\n5. **weather**: Weather conditions also play a role, but the specific weather values (like clear skies, clouds, light rain, etc.) in this dataset seem less directly tied to cnt when compared to other factors like temp and season.\n\nThe justification for these selections is rooted in observable patterns: during warmer seasons and higher temperatures, there's a noticeable increase in cnt. Additionally, working days correlate with more rentals as expected. Humidity can indirectly influence cnt through its effect on comfort levels. Weather has some impact but is less consistent across all values provided.\n\nThese features are critical for understanding or predicting \"cnt\" based on the patterns observed within the data set.",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "bike_sharing_500",
+    "injector": "bad_rows_injection",
+    "template_id": "anomaly_data_quality_filter_v0",
+    "model": "qwen2.5:7b",
+    "question": "You can apply exactly one rule based on a single column to exclude problematic rows before analyzing cnt. Which column should the rule be based on? Return a single column name.",
+    "expected_answer": "_check_flag",
+    "model_answer": "`windspeed` \n\nBased on the data provided, there are several rows where `windspeed` is either 0 or very low (e.g., 0.04, 0.06), yet the corresponding `cnt` value is relatively high. This suggests that these rows might be problematic outliers and could skew any analysis involving the `cnt` column.\n\nFor example:\n- Rows with `windspeed` = 0 or very low have `cnt` values like 13, 27, 58, etc.\n- Rows with normal `windspeed` values have more consistent `cnt` values.\n\nExcluding rows where `windspeed` is 0 or extremely low might help in obtaining a cleaner dataset for analysis.",
+    "answer_format": "categorical"
+  },
+  {
+    "dataset": "bike_sharing_500",
+    "injector": "changepoint_injection",
+    "template_id": "rca_retrain_point_v0",
+    "model": "qwen2.5:7b",
+    "question": "Column cnt is a model\u2019s output score over the rows in this table. Should the model be retrained? Return exactly one of: YES, NO. If YES, return the earliest row_id value after which retraining is warranted.",
+    "expected_answer": "YES, 387",
+    "model_answer": "NO",
+    "answer_format": "row"
+  },
+  {
+    "dataset": "vgsales_500",
+    "injector": "simpsons_paradox_injection",
+    "template_id": "rca_performance_improve_v0",
+    "model": "qwen2.5:7b",
+    "question": "Between period A and period B (defined by before and after Racing in Genre), did Global_Sales improve, worsen, or stay about the same? Return exactly one of: IMPROVED, WORSENED, UNCHANGED.",
+    "expected_answer": "IMPROVED",
+    "model_answer": "UNCHANGED\n\nExplanation:\nTo determine if global sales improved, worsened, or stayed about the same between period A and period B (before and after \"Racing\" in Genre), we'll look at the average Global_Sales before and after this genre change.\n\nBefore Racing:\nThe last game before \"Racing\" is \"Star Wars: Knights of the Old Republic II - The Sith Lords\" with a global sale of 1.75 million.\nAverage = 1.75\n\nAfter Racing:\nThe first game after \"Racing\" is \"Need for Speed Most Wanted\" with a global sale of 0.71 million.\nAverage = 0.71\n\nSince the average Global_Sales from before to after the \"Racing\" genre are about the same (1.75 vs 0.71), we can conclude that there was no significant change, hence UNCHANGED.",
+    "answer_format": "categorical"
+  },
+  {
+    "dataset": "vgsales_500",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "qwen2.5:7b",
+    "question": "Which columns matter most for understanding or predicting Global_Sales? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "f_uxcq",
+      "val_4x0c",
+      "attr_god9",
+      "x_gynd",
+      "x_n36h"
+    ],
+    "model_answer": "Based on the provided data, several features can be considered relevant for understanding or predicting Global_Sales. Here are the top 5 features ranked from most to least important:\n\n1. **Global_Sales**: This is the target variable we're trying to understand or predict.\n2. **User_Score**: User ratings often correlate with sales, as positive reviews and scores can attract more players or buyers.\n3. **NA_Sales**: North American sales are a significant regional market, so this feature can provide insight into global performance.\n4. **EU_Sales**: European sales contribute substantially to overall global sales, making them an important factor.\n5. **JP_Sales**: Japanese sales also play a key role in determining the global success of games.\n\nJustification:\n- **Global_Sales** is directly the outcome we are trying to understand or predict.\n- **User_Score** indicates how well-received the game was by its users, which can drive sales.\n- **NA_Sales**, being one of the largest markets globally, provides a significant portion of global sales and thus influences overall performance.\n- **EU_Sales** is another major market that drives global sales numbers.\n- **JP_Sales** is important as it represents a significant regional market, especially for console games.\n\nOther features like Critic_Score, Release_Date, and Genre also have some predictive power but are not ranked here due to their lesser direct impact on the overall sales compared to the top 5.",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "vgsales_500",
+    "injector": "heteroskedastic_injection",
+    "template_id": "anomaly_riskier_group_v0",
+    "model": "qwen2.5:7b",
+    "question": "Between groups Puzzle and Shooter (defined by Genre), which group should be treated as higher risk with respect to Global_Sales? Return exactly one group name.",
+    "expected_answer": "Puzzle",
+    "model_answer": "Puzzle",
+    "answer_format": "categorical"
+  },
+  {
+    "dataset": "vgsales_500",
+    "injector": "bad_rows_injection",
+    "template_id": "anomaly_data_quality_filter_v0",
+    "model": "qwen2.5:7b",
+    "question": "You can apply exactly one rule based on a single column to exclude problematic rows before analyzing Global_Sales. Which column should the rule be based on? Return a single column name.",
+    "expected_answer": "_check_flag",
+    "model_answer": "Global_Sales",
+    "answer_format": "categorical"
+  },
+  {
+    "dataset": "vgsales_500",
+    "injector": "changepoint_injection",
+    "template_id": "rca_retrain_point_v0",
+    "model": "qwen2.5:7b",
+    "question": "Column Global_Sales is a model\u2019s output score over the rows in this table. Should the model be retrained? Return exactly one of: YES, NO. If YES, return the earliest row_id value after which retraining is warranted.",
+    "expected_answer": "YES, 316",
+    "model_answer": "NO",
+    "answer_format": "row"
+  },
+  {
+    "dataset": "bike_sharing_1000",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "qwen2.5:7b",
+    "question": "Which columns matter most for understanding or predicting cnt? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "var_gkmp",
+      "var_wb8o",
+      "m_lv2o",
+      "feat_jphe",
+      "feat_38m8"
+    ],
+    "model_answer": "To understand which columns matter most for \"cnt,\" we need to consider their relationship and relevance to the count of trips (`cnt`). The key features are:\n\n1. **trend**:\n   - This column shows an overall pattern or trend, possibly influenced by time (day, week, month). For instance, we can observe that on certain days like 2011-02-13 and 2011-02-14, there are significant changes in `cnt` which might be related to this trend.\n\n2. **dteday**:\n   - This column represents the date, indicating when data was recorded. By examining dates with high or low counts, we can discern seasonal patterns and trends that could influence `cnt`. For example, certain days like 2011-02-13 and 2011-02-14 show a clear drop in `cnt`, suggesting possible external factors.\n\n3. **season**:\n   - This column categorizes data based on the season of the year (e.g., spring, summer). The seasons can affect the number of bike rentals as people may prefer using bikes more during warmer months or less during colder ones. For instance, if certain seasonal values consistently correlate with high `cnt`, it would indicate a strong relationship.\n\n4. **temp**:\n   - Temperature is likely to influence trip counts significantly. Warmer temperatures might encourage more cycling, resulting in higher `cnt` on those days. By analyzing the correlation between temperature and count, we can determine its importance.\n\n5. **windspeed**:\n   - Wind speed could affect the willingness of people to go out for a bike ride, with high winds potentially deterring use. This variable should be considered as it may have an impact on `cnt`. However, without detailed analysis, its contribution might be less critical than some other factors.\n\n### Justification:\n\n- **trend and dteday**: These columns directly relate to time, which is a fundamental aspect influencing the number of bike rentals.\n- **season**: Seasonal variations can significantly impact user behavior.\n- **temp**: Weather conditions are crucial as temperature affects human activity levels.\n- **windspeed**: While relevant, its importance might be secondary compared to other factors given its directness and commonness in such analyses.\n\nThese features should provide a strong foundation for understanding or predicting `cnt`.",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "bike_sharing_1000",
+    "injector": "bad_rows_injection",
+    "template_id": "anomaly_data_quality_filter_v0",
+    "model": "qwen2.5:7b",
+    "question": "You can apply exactly one rule based on a single column to exclude problematic rows before analyzing cnt. Which column should the rule be based on? Return a single column name.",
+    "expected_answer": "_check_flag",
+    "model_answer": "Based on the data provided, it appears that column `ws` (wind speed) might contain problematic values. There are several instances where `ws` is 0, which could be considered abnormal if wind speed cannot realistically be 0 in typical scenarios. \n\nTo exclude such rows before analyzing `cnt`, a rule based on the `ws` column can be applied to remove rows with `ws = 0`.\n\nTherefore, the rule should be based on the **`ws`** column.",
+    "answer_format": "categorical"
+  },
+  {
+    "dataset": "vgsales_1000",
+    "injector": "simpsons_paradox_injection",
+    "template_id": "rca_performance_improve_v0",
+    "model": "qwen2.5:7b",
+    "question": "Between period A and period B (defined by before and after Racing in Genre), did Global_Sales improve, worsen, or stay about the same? Return exactly one of: IMPROVED, WORSENED, UNCHANGED.",
+    "expected_answer": "IMPROVED",
+    "model_answer": "WORSENED\n\nExplanation:\nTo determine if global sales improved, worsened, or stayed about the same between period A (before Racing) and period B (after Racing), I compared the average global sales for both periods.\n\nPeriod A (Before Racing):\nThe last game before Racing is Midnight Club II. Looking at the data, there are 21 games listed before Racing.\nAverage Global Sales = Sum of Global_Sales / Number of Games\n= (1663.79 - 1480) / 21 \u2248 8.27\n\nPeriod B (After Racing):\nThe first game after Racing is Midnight Club II itself. Looking at the data, there are 65 games listed after Racing.\nAverage Global Sales = Sum of Global_Sales / Number of Games\n= (3496.04 - 1480) / 65 \u2248 3.2\n\nComparing the average global sales:\nPeriod A: ~8.27\nPeriod B: ~3.2\n\nThe average global sales worsened from Period A to Period B, so the answer is WORSENED.",
+    "answer_format": "categorical"
+  },
+  {
+    "dataset": "bike_sharing_1000",
+    "injector": "changepoint_injection",
+    "template_id": "rca_retrain_point_v0",
+    "model": "qwen2.5:7b",
+    "question": "Column cnt is a model\u2019s output score over the rows in this table. Should the model be retrained? Return exactly one of: YES, NO. If YES, return the earliest row_id value after which retraining is warranted.",
+    "expected_answer": "YES, 364",
+    "model_answer": "NO",
+    "answer_format": "row"
+  },
+  {
+    "dataset": "vgsales_1000",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "qwen2.5:7b",
+    "question": "Which columns matter most for understanding or predicting Global_Sales? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "val_4x0c",
+      "x_n36h",
+      "col_8kzm",
+      "attr_god9",
+      "m_d6bp"
+    ],
+    "model_answer": "To understand or predict Global_Sales, several features seem to be particularly important based on their relation and variability within the dataset:\n\n1. **NA_Sales**: North American sales often correlate closely with global sales due to its significant market size. Games that perform well in NA tend to have strong international appeal.\n   \n2. **EU_Sales**: European sales are another key factor as Europe is a major gaming market. The performance in this region can provide insight into the game's popularity across different demographics and platforms.\n\n3. **JP_Sales**: Japanese market data is important because Japan has historically been one of the largest markets for video games, influencing global trends especially in terms of console sales cycles.\n\n4. **Other_Sales**: This category includes all other regions not covered by NA, EU, or JP. While it may have less impact than the major regions, understanding other regional performance can provide a more comprehensive view of a game's international reach and appeal beyond these key markets.\n\n5. **Year**: The year in which the game was released could be significant because it influences market conditions such as technological advancements, changes in consumer preferences, and marketing strategies employed by publishers.\n\nThese features are ranked based on their potential to capture regional variations that collectively influence global sales performance. NA_Sales, EU_Sales, and JP_Sales directly represent major regional markets whose combined data is highly indicative of broader global success, while Other_Sales offer insights into the game's performance in additional markets. The year of release provides context for understanding external factors affecting a game\u2019s market entry and lifecycle.",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "vgsales_1000",
+    "injector": "changepoint_injection",
+    "template_id": "rca_retrain_point_v0",
+    "model": "qwen2.5:7b",
+    "question": "Column Global_Sales is a model\u2019s output score over the rows in this table. Should the model be retrained? Return exactly one of: YES, NO. If YES, return the earliest Rank value after which retraining is warranted.",
+    "expected_answer": "YES, 873",
+    "model_answer": "NO",
+    "answer_format": "row"
+  },
+  {
+    "dataset": "vgsales_1000",
+    "injector": "heteroskedastic_injection",
+    "template_id": "anomaly_riskier_group_v0",
+    "model": "qwen2.5:7b",
+    "question": "Between groups Fighting and Sports (defined by Genre), which group should be treated as higher risk with respect to Global_Sales? Return exactly one group name.",
+    "expected_answer": "Sports",
+    "model_answer": "Sports",
+    "answer_format": "categorical"
+  },
+  {
+    "dataset": "vgsales_1000",
+    "injector": "bad_rows_injection",
+    "template_id": "anomaly_data_quality_filter_v0",
+    "model": "qwen2.5:7b",
+    "question": "You can apply exactly one rule based on a single column to exclude problematic rows before analyzing Global_Sales. Which column should the rule be based on? Return a single column name.",
+    "expected_answer": "_check_flag",
+    "model_answer": "Global_Sales",
+    "answer_format": "categorical"
+  }
+]
