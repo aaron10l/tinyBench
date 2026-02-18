@@ -3,7 +3,13 @@
 Changes group sampling rates across time periods so that within-group
 trends oppose the aggregate trend.
 
-TODO:
+Strategy:
+  1. Neutralize natural within-group temporal trends (B mean → A mean per group).
+  2. Measure the composition gap: after neutralization any aggregate A-B
+     difference is purely due to group proportions differing across periods.
+  3. Shift all period-B values up by epsilon = composition_gap * 0.5.
+     This guarantees every group improves (B > A by epsilon) while the
+     aggregate still declines (gap shrinks by epsilon, not eliminated).
 """
 from __future__ import annotations
 
@@ -20,8 +26,8 @@ def inject(
     Parameters
     ----------
     df : DataFrame to modify (will be copied).
-    params : Must contain ``outcome_col`` (str), ``time_col`` (str),
-             ``group_col`` (str), and ``specific_date`` (str).
+    params : Must contain ``outcome_col``, ``time_col``, ``group_col``,
+             and ``specific_date``.
     rng : NumPy random Generator for reproducibility.
 
     Returns
@@ -41,123 +47,88 @@ def inject(
     except (ValueError, TypeError):
         specific_date_typed = specific_date
 
-    # Split into two periods: before and after specific_date
-    mask_a = df[time_col] < specific_date_typed  # Period A: before
-    mask_b = df[time_col] >= specific_date_typed  # Period B: after
+    mask_a = df[time_col] < specific_date_typed
+    mask_b = df[time_col] >= specific_date_typed
 
     groups = df[group_col].unique()
     if len(groups) < 2:
-        return df, {
-            "type": "simpsons_paradox_injection",
-            "params": params,
-            "effects": {"split_point": specific_date, "group_col": group_col},
-        }
+        raise ValueError("Need at least 2 groups to inject Simpson's paradox")
+    if mask_a.sum() == 0 or mask_b.sum() == 0:
+        raise ValueError("One or both time periods are empty")
 
-    # Step 1 — Compute group structure on original data
-    group_means = df.groupby(group_col)[outcome_col].mean().sort_values()
-    groups_sorted = group_means.index.tolist()
-    mid = len(groups_sorted) // 2
-    low_groups = set(groups_sorted[:mid])
-    high_groups = set(groups_sorted[mid:])
-
-    # Step 2 — Neutralize natural temporal trends so that within each group,
-    # period B mean equals period A mean.  This ensures the composition shift
-    # (step 3) is the sole driver of the aggregate difference.
-    for g in df[group_col].unique():
-        vals_a = df.loc[mask_a & (df[group_col] == g), outcome_col].astype(float)
-        vals_b = df.loc[mask_b & (df[group_col] == g), outcome_col].astype(float)
-        if len(vals_a) == 0 or len(vals_b) == 0:
+    # Step 1 — Neutralize within-group temporal trends (set B mean == A mean per group)
+    for g in groups:
+        mask_a_g = mask_a & (df[group_col] == g)
+        mask_b_g = mask_b & (df[group_col] == g)
+        if mask_a_g.sum() == 0 or mask_b_g.sum() == 0:
             continue
-        adjustment = vals_a.mean() - vals_b.mean()  # shift B to match A
-        mask_gb = mask_b & (df[group_col] == g)
-        df.loc[mask_gb, outcome_col] = (
-            df.loc[mask_gb, outcome_col].astype(float) + adjustment
+        delta = (
+            df.loc[mask_a_g, outcome_col].astype(float).mean()
+            - df.loc[mask_b_g, outcome_col].astype(float).mean()
+        )
+        df.loc[mask_b_g, outcome_col] = df.loc[mask_b_g, outcome_col].astype(float) + delta
+
+    # Step 2 — Measure composition gap (purely compositional after neutralization)
+    agg_a = df.loc[mask_a, outcome_col].astype(float).mean()
+    agg_b = df.loc[mask_b, outcome_col].astype(float).mean()
+    composition_gap = agg_a - agg_b
+
+    if composition_gap <= 0:
+        raise ValueError(
+            "Natural composition does not support Simpson's paradox: "
+            "high-mean groups are not sufficiently over-represented in period A"
         )
 
-    # Step 3 — Composition shift + per-group calibration on the final data
-    paradox_achieved = False
-    final_drop_fraction = None
-    n_rows_dropped = 0
-    epsilon = 0.0
+    # Step 3 — Shift all period-B values up by epsilon
+    # epsilon < composition_gap ensures aggregate B stays below aggregate A
+    epsilon = composition_gap * 0.5
+    df.loc[mask_b, outcome_col] = df.loc[mask_b, outcome_col].astype(float) + epsilon
 
-    for drop_fraction in [0.5, 0.6, 0.7, 0.8]:
-        df_candidate = df.copy()
-        rows_to_drop = []
+    # Final verification
+    agg_a_final = df.loc[mask_a, outcome_col].astype(float).mean()
+    agg_b_final = df.loc[mask_b, outcome_col].astype(float).mean()
 
-        # Period A: drop from low-mean groups (makes A's aggregate higher)
-        for g in low_groups:
-            candidates = df_candidate[mask_a & (df_candidate[group_col] == g)].index
-            n_drop = int(len(candidates) * drop_fraction)
-            if n_drop > 0:
-                drop_idx = rng.choice(candidates, size=n_drop, replace=False)
-                rows_to_drop.extend(drop_idx)
+    within_group_ok = all(
+        df.loc[mask_b & (df[group_col] == g), outcome_col].astype(float).mean()
+        > df.loc[mask_a & (df[group_col] == g), outcome_col].astype(float).mean()
+        for g in groups
+        if (mask_a & (df[group_col] == g)).sum() > 0
+        and (mask_b & (df[group_col] == g)).sum() > 0
+    )
+    paradox_achieved = within_group_ok and (agg_b_final < agg_a_final)
 
-        # Period B: drop from high-mean groups (makes B's aggregate lower)
-        for g in high_groups:
-            candidates = df_candidate[mask_b & (df_candidate[group_col] == g)].index
-            n_drop = int(len(candidates) * drop_fraction)
-            if n_drop > 0:
-                drop_idx = rng.choice(candidates, size=n_drop, replace=False)
-                rows_to_drop.extend(drop_idx)
+    # Print proof of Simpson's paradox
+    # print(f"\n  Within-group trends ({group_col}):")
+    # for g in sorted(groups, key=str):
+    #     vals_a = df.loc[mask_a & (df[group_col] == g), outcome_col].astype(float)
+    #     vals_b = df.loc[mask_b & (df[group_col] == g), outcome_col].astype(float)
+    #     if len(vals_a) == 0 or len(vals_b) == 0:
+    #         continue
+    #     diff = vals_b.mean() - vals_a.mean()
+    #     arrow = "↑" if diff > 0 else ("↓" if diff < 0 else "→")
+    #     print(f"    '{g}':  A={vals_a.mean():.3f}  →  B={vals_b.mean():.3f}  ({arrow}{abs(diff):.3f})")
 
-        df_candidate = df_candidate.drop(index=rows_to_drop).reset_index(drop=True)
-
-        # Measure the composition gap on the neutralized, shifted data
-        mask_a_new = df_candidate[time_col] < specific_date_typed
-        mask_b_new = df_candidate[time_col] >= specific_date_typed
-        agg_a = df_candidate.loc[mask_a_new, outcome_col].astype(float).mean()
-        agg_b = df_candidate.loc[mask_b_new, outcome_col].astype(float).mean()
-        gap = agg_a - agg_b  # positive because trends are neutralized
-
-        if gap <= 0:
-            continue  # shouldn't happen after neutralization, but be safe
-
-        # Per-group adjustment: set each group's B mean to A mean + epsilon.
-        # Use 30% of gap so the paradox is preserved (aggregate B rises by
-        # ~epsilon but stays below aggregate A).
-        epsilon = gap * 0.3
-        for g in df_candidate[group_col].unique():
-            vals_a = df_candidate.loc[
-                mask_a_new & (df_candidate[group_col] == g), outcome_col
-            ].astype(float)
-            vals_b = df_candidate.loc[
-                mask_b_new & (df_candidate[group_col] == g), outcome_col
-            ].astype(float)
-            if len(vals_a) == 0 or len(vals_b) == 0:
-                continue
-            current_trend = vals_b.mean() - vals_a.mean()
-            adjustment = epsilon - current_trend
-            mask_gb = mask_b_new & (df_candidate[group_col] == g)
-            df_candidate.loc[mask_gb, outcome_col] = (
-                df_candidate.loc[mask_gb, outcome_col].astype(float) + adjustment
-            )
-
-        # Final verification
-        agg_a_final = df_candidate.loc[mask_a_new, outcome_col].astype(float).mean()
-        agg_b_final = df_candidate.loc[mask_b_new, outcome_col].astype(float).mean()
-
-        if agg_b_final < agg_a_final:
-            df = df_candidate
-            paradox_achieved = True
-            final_drop_fraction = drop_fraction
-            n_rows_dropped = len(rows_to_drop)
-            break
+    # agg_diff = agg_b_final - agg_a_final
+    # agg_arrow = "↑" if agg_diff > 0 else ("↓" if agg_diff < 0 else "→")
+    # print(f"\n  Aggregate trend:")
+    # print(f"    A={agg_a_final:.3f}  →  B={agg_b_final:.3f}  ({agg_arrow}{abs(agg_diff):.3f})")
+    # print(f"\n  Simpson's paradox injected: {'YES' if paradox_achieved else 'NO'}")
 
     if not paradox_achieved:
         raise ValueError(
-            "Cannot achieve Simpson's paradox on this dataset "
-            "(groups may be too homogeneous)"
+            "Simpson's paradox not achieved after adjustment "
+            "(within-group or aggregate condition failed)"
         )
 
-    # Step 3 — Record effects
+    group_means_sorted = df.groupby(group_col)[outcome_col].mean().sort_values()
+    mid = len(group_means_sorted) // 2
     effects = {
         "split_point": str(specific_date),
         "group_col": group_col,
-        "low_groups": [str(g) for g in groups_sorted[:mid]],
-        "high_groups": [str(g) for g in groups_sorted[mid:]],
+        "low_groups": [str(g) for g in group_means_sorted.index[:mid]],
+        "high_groups": [str(g) for g in group_means_sorted.index[mid:]],
         "epsilon": float(epsilon),
-        "n_rows_dropped": n_rows_dropped,
-        "drop_fraction": final_drop_fraction,
+        "composition_gap": float(composition_gap),
         "paradox_verified": True,
     }
 
