@@ -4,7 +4,7 @@ import pandas as pd
 
 
 def compute_answer(df: pd.DataFrame, slot_assignments: dict, effects: dict) -> Any:
-    inj = effects["simpsons_paradox_injection"]
+    effects["simpsons_paradox_injection"]  # assert key exists
 
     outcome_col = slot_assignments["OUTCOME_COL"]
     time_col = slot_assignments["TIME_COL"]
@@ -27,47 +27,43 @@ def compute_answer(df: pd.DataFrame, slot_assignments: dict, effects: dict) -> A
             f"period_B={mask_b.sum()} rows (split='{specific_date}')"
         )
 
-    # Compute within-group mean change from period A to period B
+    # Compute within-group trends
     groups = df[group_col].unique()
     improved_count = 0
     worsened_count = 0
-    unchanged_count = 0
+    comparable_groups = 0
 
-    for g in groups:
+    for g in sorted(groups, key=str):
         vals_a = df.loc[mask_a & (df[group_col] == g), outcome_col].astype(float)
         vals_b = df.loc[mask_b & (df[group_col] == g), outcome_col].astype(float)
         if len(vals_a) == 0 or len(vals_b) == 0:
             continue
+        comparable_groups += 1
         diff = vals_b.mean() - vals_a.mean()
         if diff > 0:
             improved_count += 1
         elif diff < 0:
             worsened_count += 1
-        else:
-            unchanged_count += 1
 
-    if improved_count == 0 and worsened_count == 0:
+    if comparable_groups == 0:
         raise ValueError("No groups had rows in both periods — cannot determine trend.")
 
-    # Also compute aggregate trend for a sanity reference
+    # Aggregate trend
     agg_a = df.loc[mask_a, outcome_col].astype(float).mean()
     agg_b = df.loc[mask_b, outcome_col].astype(float).mean()
     agg_direction = "IMPROVED" if agg_b > agg_a else "WORSENED" if agg_b < agg_a else "UNCHANGED"
+    within_group_answer = "IMPROVED" if improved_count == comparable_groups else (
+        "WORSENED" if worsened_count == comparable_groups else "MIXED"
+    )
 
-    # The within-group answer: majority of groups should agree
-    if improved_count > worsened_count:
-        within_group_answer = "IMPROVED"
-    elif worsened_count > improved_count:
-        within_group_answer = "WORSENED"
-    else:
-        within_group_answer = "UNCHANGED"
-
-    # For a proper Simpson's paradox, within-group should oppose aggregate
-    if within_group_answer == agg_direction:
+    # Verify Simpson's paradox for this injector:
+    # all groups improve while aggregate worsens.
+    if within_group_answer != "IMPROVED" or agg_direction != "WORSENED":
         raise ValueError(
             f"No Simpson's paradox detected: within-group trend ({within_group_answer}) "
-            f"matches aggregate trend ({agg_direction}). "
-            f"Groups improved={improved_count}, worsened={worsened_count}, unchanged={unchanged_count}. "
+            f"and aggregate trend ({agg_direction}) do not match the injected pattern. "
+            f"Groups improved={improved_count}, worsened={worsened_count}, "
+            f"comparable={comparable_groups}. "
             f"Aggregate mean: A={agg_a:.4f}, B={agg_b:.4f}"
         )
 
