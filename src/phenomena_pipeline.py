@@ -267,9 +267,14 @@ def build_instance(
     output_dirs: List[Path] = []
     table_rows: List[List[str]] = []
 
+    id_no_cols = summary.get("by_kind", {}).get("id_no", [])
+
     for spec in phenomena_specs:
         injector_type = spec["type"]
         params = spec["params"]
+
+        if injector_type == "name_swap_injection" and id_no_cols:
+            params = {**params, "id_no_cols": id_no_cols}
 
         # Start from fresh copy of original data
         df = df_original.copy()

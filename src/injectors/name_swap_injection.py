@@ -1,30 +1,31 @@
 """Name-swap injector.
 
-Renames all columns except the target column to random strings.
-Goal is to disable name-based heuristics for feature importance.
-
-TODO:
-- discuss with team if this injection is useful.
+Permutes column names among non-target columns (derangement) so that every
+column receives a different column's name.  This disables name-based
+heuristics while keeping plausible-looking headers.
 """
 from __future__ import annotations
-
-import string
 
 import numpy as np
 import pandas as pd
 
 
-# Pool of neutral, non-descriptive column name prefixes
-_PREFIXES = [
-    "var", "col", "attr", "field", "val", "feat", "x", "v", "f", "c", "a", "m",
-]
+def _derangement(rng: np.random.Generator, n: int, max_iter: int = 1000) -> np.ndarray:
+    """Return a derangement (no fixed points) of range(n).
 
+    Uses rejection sampling.  Falls back to rotate-by-1 if sampling
+    doesn't converge within *max_iter* attempts.
+    """
+    if n < 2:
+        raise ValueError("Cannot derange fewer than 2 elements")
 
-def _generate_random_name(rng: np.random.Generator, length: int = 4) -> str:
-    """Generate a random column name like 'var_a3x9' or 'col_m2k7'."""
-    prefix = rng.choice(_PREFIXES)
-    suffix = "".join(rng.choice(list(string.ascii_lowercase + string.digits), size=length))
-    return f"{prefix}_{suffix}"
+    for _ in range(max_iter):
+        perm = rng.permutation(n)
+        if not np.any(perm == np.arange(n)):
+            return perm
+
+    # Fallback: simple rotation guarantees no fixed points
+    return np.roll(np.arange(n), 1)
 
 
 def inject(
@@ -45,26 +46,28 @@ def inject(
     """
     df = df.copy()
     target_col = params["target_col"]
+    exclude_cols = set(params.get("exclude_cols", []))
+    exclude_cols.update(params.get("id_no_cols", []))
+    exclude_cols.add(target_col)
 
-    # Generate unique random names for all non-target columns
-    columns_to_rename = [c for c in df.columns if c != target_col]
+    columns_to_swap = [c for c in df.columns if c not in exclude_cols]
 
-    used_names = {target_col}
-    rename_map = {}
+    if len(columns_to_swap) < 2:
+        # Nothing meaningful to swap — return unmodified
+        return df, {
+            "type": "name_swap_injection",
+            "params": params,
+            "effects": {"original_to_new": {}, "new_to_original": {}},
+        }
 
-    for old_name in columns_to_rename:
-        # Generate unique new name
-        new_name = _generate_random_name(rng)
-        while new_name in used_names:
-            new_name = _generate_random_name(rng)
+    perm = _derangement(rng, len(columns_to_swap))
+    rename_map = {
+        columns_to_swap[i]: columns_to_swap[int(perm[i])]
+        for i in range(len(columns_to_swap))
+    }
 
-        rename_map[old_name] = new_name
-        used_names.add(new_name)
-
-    # Apply the renaming
     df = df.rename(columns=rename_map)
 
-    # Build reverse mapping for answer computation (new_name -> old_name)
     reverse_map = {v: k for k, v in rename_map.items()}
 
     effects = {
