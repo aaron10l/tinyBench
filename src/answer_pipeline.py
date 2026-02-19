@@ -91,6 +91,9 @@ def process_instance(manifest_path: Path) -> List[List[str]]:
         if status == "OK":
             qa["answer"] = answer
             updated = True
+        elif status == "ERROR":
+            qa["answer"] = None
+            updated = True
         rows.append([dataset_name, injector_type, template_id, repr(answer), status])
 
     if updated:
