@@ -19,11 +19,10 @@ python src/phenomena_pipeline.py --summary data/standardized/summaries/bike_shar
 python src/answer_pipeline.py
 python src/answer_pipeline.py --instances-dir data/instances
 
-# 3. Evaluate against local Ollama models (requires Ollama on localhost:11434)
-python src/eval_pipeline.py --models deepseek-r1:8b qwen2.5:7b
-
-# 4. Evaluate against frontier API models (requires .env with API keys)
-python src/eval_pipeline_api.py --models claude-opus-4-6 gpt-4o
+# 3. Evaluate models — provider auto-detected from model name
+python src/eval_pipeline.py --models deepseek-r1:8b qwen2.5:7b          # Ollama only
+python src/eval_pipeline.py --models claude-opus-4-6 gpt-4o              # API only (needs .env)
+python src/eval_pipeline.py --models deepseek-r1:8b claude-opus-4-6      # mixed
 ```
 
 There is no formal test suite.
@@ -38,7 +37,7 @@ The system follows a four-stage pipeline:
 
 3. **Answer Computation** (`answer_pipeline.py`) — Walks `data/instances/{dataset}/seed_{N}/{injector}/manifest.json` files and runs the corresponding answer computer to produce ground-truth answers.
 
-4. **Evaluation** (`eval_pipeline.py` for Ollama, `eval_pipeline_api.py` for Anthropic/OpenAI) — Sends table + question to models, collects responses, saves results to `data/results/`.
+4. **Evaluation** (`eval_pipeline.py`) — Sends table + question to models, collects responses, saves results to `data/results/`. Provider is auto-detected from the model name; supports Ollama, Anthropic, and OpenAI in a single run.
 
 ## Dispatch Registries
 
@@ -98,7 +97,7 @@ Schema: `templates/template_schema.json`
 - **Deterministic generation**: RNG seeded via `MD5(f"{seed}:{injector_type}:{sorted(params.items())}") % 2^31`
 - **One phenomenon per instance**: Each `data/instances/.../` directory has exactly one injected phenomenon with its own copy of the table
 - **Manifest-driven**: `manifest.json` in each instance directory is the source of truth for metadata, QA pairs, and answers
-- **Lazy API clients**: `eval_pipeline_api.py` only initializes Anthropic/OpenAI clients when the requested models need them
+- **Lazy API clients**: `eval_pipeline.py` only initializes Anthropic/OpenAI clients when the requested models need them
 - **Deduplication**: Same injector + same resolved params = single instance even if multiple templates reference it
 
 ## Environment
