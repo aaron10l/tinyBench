@@ -1,73 +1,266 @@
-"""Evaluate QA instances against local Ollama models."""
+"""Unified QA evaluation pipeline — supports Ollama, Anthropic, and OpenAI models."""
 from __future__ import annotations
 
 import argparse
 import json
-import re
+import os
 import sys
 from collections import defaultdict
 from pathlib import Path
+from typing import Callable
 
 import requests
 
 from io_utils import load_json
 
-DEFAULT_MODELS = ["deepseek-r1:8b", "qwen2.5:7b", "llama3.2:3b", "phi4:latest"]
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+DEFAULT_MODELS = [
+    # Ollama
+    "deepseek-r1:8b",
+    "qwen2.5:7b",
+    "llama3.2:3b",
+    "phi4:latest",
+    # Anthropic
+    "claude-opus-4-6",
+    "claude-sonnet-4-5-20250929",
+    # OpenAI
+    "gpt-4o",
+    "gpt-4o-mini",
+]
 DEFAULT_INSTANCES_DIR = Path("data/instances")
 DEFAULT_OUTPUT = Path("data/results/eval_results.json")
-OLLAMA_URL = "http://localhost:11434/api/generate"
+
+OLLAMA_URL = "http://localhost:11434/api/chat"
+
+THINKING_MODELS = {"claude-opus-4-6"}
 
 SYSTEM_PROMPT = (
     "You are a data analyst. You are given a CSV dataset and a question about it.\n"
     "Answer the question concisely. Do not explain your reasoning."
 )
 
+# Shared JSON schema used by all providers for structured output.
+ANSWER_SCHEMA = {
+    "type": "object",
+    "properties": {"answer": {"type": "string"}},
+    "required": ["answer"],
+    "additionalProperties": False,
+}
 
-def build_prompt(csv_text: str, question: str) -> str:
-    return f"{SYSTEM_PROMPT}\n\n## Dataset\n{csv_text}\n\n## Question\n{question}"
+# ---------------------------------------------------------------------------
+# Provider detection
+# ---------------------------------------------------------------------------
 
-
-_THINK_RE = re.compile(r"<think>(.*?)</think>", re.DOTALL)
-
-
-def query_ollama(model: str, prompt: str) -> tuple[str, str | None]:
-    """Return (answer, thinking) — thinking is None when the model doesn't emit <think> tags."""
-    resp = requests.post(
-        OLLAMA_URL,
-        json={"model": model, "prompt": prompt, "stream": False},
-        timeout=1800,
+def detect_provider(model: str) -> str:
+    """Infer the provider from the model name."""
+    if ":" in model:
+        return "ollama"
+    if model.startswith("claude"):
+        return "anthropic"
+    if model.startswith(("gpt-", "o1", "o3", "o4")):
+        return "openai"
+    raise ValueError(
+        f"Cannot infer provider for model '{model}'. "
+        "Ollama models contain ':', Anthropic models start with 'claude', "
+        "OpenAI models start with 'gpt-', 'o1', 'o3', or 'o4'."
     )
-    resp.raise_for_status()
-    raw = resp.json()["response"]
 
-    thinking = None
-    think_match = _THINK_RE.search(raw)
-    if think_match:
-        thinking = think_match.group(1).strip()
-        answer = _THINK_RE.sub("", raw).strip()
-    else:
-        answer = raw.strip()
+
+# ---------------------------------------------------------------------------
+# Query functions  (client, model, csv_text, question) -> (answer, thinking)
+# ---------------------------------------------------------------------------
+
+def query_ollama(
+    _client: None,
+    model: str,
+    csv_text: str,
+    question: str,
+) -> tuple[str, str | None]:
+    """Query an Ollama model via /api/chat with structured JSON output."""
+    user_content = f"## Dataset\n{csv_text}\n\n## Question\n{question}"
+    payload = {
+        "model": model,
+        "stream": False,
+        "format": ANSWER_SCHEMA,
+        "options": {"num_predict": 512},
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_content},
+        ],
+    }
+    resp = requests.post(OLLAMA_URL, json=payload, timeout=120)
+    resp.raise_for_status()
+    data = resp.json()
+    message = data.get("message", {})
+
+    # Ollama 0.7+ separates thinking into message.thinking
+    thinking: str | None = message.get("thinking") or None
+
+    raw_content = message.get("content", "")
+    try:
+        answer = json.loads(raw_content)["answer"]
+    except (json.JSONDecodeError, KeyError):
+        answer = raw_content.strip()
 
     return answer, thinking
 
 
-def discover_instances(instances_dir: Path) -> list[Path]:
-    """Return manifests sorted by CSV size (smallest datasets first)."""
+def query_anthropic(
+    client,  # anthropic.Anthropic
+    model: str,
+    csv_text: str,
+    question: str,
+) -> tuple[str, str | None]:
+    """Query an Anthropic model using tool-use for structured output."""
+    user_content = f"## Dataset\n{csv_text}\n\n## Question\n{question}"
+    kwargs: dict = dict(
+        model=model,
+        max_tokens=16_000,
+        system=SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": user_content}],
+        tools=[
+            {
+                "name": "submit_answer",
+                "description": "Submit the answer to the question.",
+                "input_schema": ANSWER_SCHEMA,
+            }
+        ],
+        tool_choice={"type": "tool", "name": "submit_answer"},
+    )
+    if model in THINKING_MODELS:
+        kwargs["thinking"] = {"type": "adaptive"}
+
+    msg = client.messages.create(**kwargs)
+
+    thinking: str | None = None
+    answer = ""
+    for block in msg.content:
+        if block.type == "thinking":
+            thinking = block.thinking
+        elif block.type == "tool_use" and block.name == "submit_answer":
+            answer = block.input.get("answer", "")
+
+    return answer, thinking
+
+
+def query_openai(
+    client,  # openai.OpenAI
+    model: str,
+    csv_text: str,
+    question: str,
+) -> tuple[str, str | None]:
+    """Query an OpenAI model with JSON schema structured output."""
+    user_content = f"## Dataset\n{csv_text}\n\n## Question\n{question}"
+    resp = client.chat.completions.create(
+        model=model,
+        max_tokens=1024,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_content},
+        ],
+        response_format={
+            "type": "json_schema",
+            "json_schema": {
+                "name": "answer",
+                "strict": True,
+                "schema": ANSWER_SCHEMA,
+            },
+        },
+    )
+    raw = resp.choices[0].message.content or ""
+    try:
+        answer = json.loads(raw)["answer"]
+    except (json.JSONDecodeError, KeyError):
+        answer = raw.strip()
+    return answer, None
+
+
+# ---------------------------------------------------------------------------
+# Provider registry  (mirrors INJECT_FN / COMPUTE_FN pattern)
+# ---------------------------------------------------------------------------
+
+QUERY_FN: dict[str, Callable] = {
+    "ollama": query_ollama,
+    "anthropic": query_anthropic,
+    "openai": query_openai,
+}
+
+
+# ---------------------------------------------------------------------------
+# Instance discovery
+# ---------------------------------------------------------------------------
+
+def discover_instances(
+    instances_dir: Path,
+    dataset: str | None = None,
+    injector: str | None = None,
+) -> list[Path]:
+    """Return manifests sorted by CSV size (smallest datasets first).
+
+    Args:
+        dataset:  Substring match against the dataset folder name (e.g. 'bike_sharing_100').
+        injector: Substring match against the injector folder name (e.g. 'name_swap').
+    """
     manifests = list(instances_dir.glob("**/manifest.json"))
+    if dataset:
+        manifests = [m for m in manifests if m.parts[-4] == dataset]
+    if injector:
+        manifests = [m for m in manifests if injector in m.parts[-2]]
     return sorted(manifests, key=lambda m: (m.parent / "table.csv").stat().st_size)
 
+
+# ---------------------------------------------------------------------------
+# Eval loop
+# ---------------------------------------------------------------------------
 
 def run_eval(
     models: list[str],
     instances_dir: Path,
     output_path: Path,
+    dataset: str | None = None,
+    injector: str | None = None,
 ) -> list[dict]:
-    manifests = discover_instances(instances_dir)
+    manifests = discover_instances(instances_dir, dataset=dataset, injector=injector)
     if not manifests:
         print(f"No manifests found under {instances_dir}")
         sys.exit(1)
 
+    # Detect providers for each model up front
+    model_providers: dict[str, str] = {}
+    for model in models:
+        try:
+            model_providers[model] = detect_provider(model)
+        except ValueError as exc:
+            print(f"ERROR: {exc}")
+            sys.exit(1)
+
+    # Lazy client initialization — only for providers actually needed
+    from dotenv import load_dotenv
+    load_dotenv()
+
+    clients: dict[str, object] = {"ollama": None}
+
+    if any(p == "anthropic" for p in model_providers.values()):
+        import anthropic as _anthropic
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            print("ERROR: ANTHROPIC_API_KEY not set in .env")
+            sys.exit(1)
+        clients["anthropic"] = _anthropic.Anthropic(api_key=api_key)
+
+    if any(p == "openai" for p in model_providers.values()):
+        import openai as _openai
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
+            print("ERROR: OPENAI_API_KEY not set in .env")
+            sys.exit(1)
+        clients["openai"] = _openai.OpenAI(api_key=api_key)
+
     results: list[dict] = []
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
     for manifest_path in manifests:
         manifest = load_json(manifest_path)
@@ -87,17 +280,16 @@ def run_eval(
             answer_format = qa["answer_format"]
 
             for model in models:
-                print(
-                    f"[{model}] {dataset}/{injector} → ",
-                    end="",
-                    flush=True,
-                )
-                thinking = None
+                print(f"[{model}] {dataset}/{injector} → ", end="", flush=True)
+
+                provider = model_providers[model]
+                query_fn = QUERY_FN[provider]
+                client = clients[provider]
+
+                thinking: str | None = None
                 try:
-                    model_answer, thinking = query_ollama(
-                        model, build_prompt(csv_text, question)
-                    )
-                except requests.RequestException as exc:
+                    model_answer, thinking = query_fn(client, model, csv_text, question)
+                except Exception as exc:
                     model_answer = f"ERROR: {exc}"
 
                 print(f"expected: {expected} | got: {model_answer}")
@@ -115,20 +307,21 @@ def run_eval(
                 if thinking:
                     result["thinking"] = thinking
                 results.append(result)
+                output_path.write_text(json.dumps(results, indent=2))
 
-    # Save results
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(results, indent=2))
     print(f"\nResults saved to {output_path}")
 
     return results
 
 
+# ---------------------------------------------------------------------------
+# Summary table
+# ---------------------------------------------------------------------------
+
 def print_summary(results: list[dict]) -> None:
     if not results:
         return
 
-    # model × template_id counts
     counts: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     for r in results:
         counts[r["model"]][r["template_id"]] += 1
@@ -136,7 +329,6 @@ def print_summary(results: list[dict]) -> None:
     templates = sorted({r["template_id"] for r in results})
     models = sorted(counts.keys())
 
-    # Header
     col_w = max(len(t) for t in templates) + 2
     model_w = max(len(m) for m in models) + 2
     header = "model".ljust(model_w) + "".join(t.ljust(col_w) for t in templates)
@@ -153,13 +345,26 @@ def print_summary(results: list[dict]) -> None:
     print()
 
 
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run QA eval against Ollama models")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Run QA eval against any combination of Ollama, Anthropic, and OpenAI models.\n"
+            "Provider is auto-detected from the model name:\n"
+            "  - Ollama:    name contains ':'  (e.g. deepseek-r1:8b)\n"
+            "  - Anthropic: name starts with 'claude'\n"
+            "  - OpenAI:    name starts with 'gpt-', 'o1', 'o3', or 'o4'"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument(
         "--models",
         nargs="+",
         default=DEFAULT_MODELS,
-        help="Ollama model tags to evaluate",
+        help="Model names to evaluate (provider auto-detected)",
     )
     parser.add_argument(
         "--instances-dir",
@@ -173,6 +378,16 @@ def main() -> None:
         default=None,
         help="Path for the JSON results file (auto-named per model when omitted)",
     )
+    parser.add_argument(
+        "--dataset",
+        default=None,
+        help="Filter instances by dataset name substring (e.g. 'bike_sharing_100')",
+    )
+    parser.add_argument(
+        "--injector",
+        default=None,
+        help="Filter instances by injector name substring (e.g. 'name_swap')",
+    )
     args = parser.parse_args()
 
     if args.output is None:
@@ -182,7 +397,7 @@ def main() -> None:
         else:
             args.output = DEFAULT_OUTPUT
 
-    results = run_eval(args.models, args.instances_dir, args.output)
+    results = run_eval(args.models, args.instances_dir, args.output, dataset=args.dataset, injector=args.injector)
     print_summary(results)
 
 
