@@ -5,11 +5,8 @@ import numpy as np
 import pandas as pd
 
 """
-This answer computer is used to compute the answer to the question "Which features are most predictive of the outcome?"
-It uses the Pearson correlation coefficient to rank the features by their predictive power.
-
-TODO:
-- Is this question too ambiguous? There are multiple ways to solve.. (pearsons correlation, EBMs, etc)
+Ranks features by absolute Pearson correlation with the outcome column.
+Matches the question template which explicitly asks for Pearson correlation.
 """
 
 def compute_answer(df: pd.DataFrame, slot_assignments: dict, effects: dict) -> Any:
