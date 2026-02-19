@@ -2,7 +2,7 @@
   "template_id": "rca_retrain_point_v0",
   "category": "Root Cause Analysis",
   "answer_format": "row",
-  "question": "Column {OUTCOME_COL} is a model’s output score over the rows in this table. Should the model be retrained? Return exactly one of: YES, NO. If YES, return the earliest {ORDER_COL} value after which retraining is warranted.",
+  "question": "Column {OUTCOME_COL} is a model's output score over the rows in this table. Should the model be retrained? If NO, return exactly: NO. If YES, return exactly: YES, <value> where <value> is the earliest {ORDER_COL} value after which retraining is warranted (e.g. YES, 42).",
 
   "slots": {
     "OUTCOME_COL": {
