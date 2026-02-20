@@ -1,0 +1,392 @@
+[
+  {
+    "dataset": "bike_sharing_100",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "claude-opus-4-6",
+    "question": "Which columns matter most for understanding or predicting cnt? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "hr",
+      "workingday",
+      "registered",
+      "weathersit",
+      "row_id"
+    ],
+    "model_answer": "Top 5 features for predicting cnt, ranked:\n\n1. **hr** \u2014 Most important. Counts swing dramatically by hour: rush hours (8, 17\u201318) reach 150\u2013212, while late-night hours (0\u20134) drop to 1\u20136. This is the single strongest pattern in the data.\n\n2. **workingday** \u2014 On workdays, sharp commute peaks appear at hr 8 and 17\u201318 (dominated by registered users). On non-workdays (e.g., Jan 1\u20132), counts are flatter with a midday leisure peak. This feature reshapes the hourly pattern.\n\n3. **temp** (or atemp) \u2014 Higher temperatures consistently associate with higher counts. Compare the Jan 1 afternoon (temp ~0.44, cnt ~110) with early Jan 3 morning (temp ~0.14, cnt in single digits). Temperature is a key demand driver.\n\n4. **weathersit** \u2014 Worse weather reduces ridership. Rows with weathersit=2 or 3 tend to show lower counts than weathersit=1 at comparable hours and temperatures.\n\n5. **hum** \u2014 Higher humidity correlates with lower counts. For example, rows with hum \u2265 0.88 (e.g., rows 19\u201320) show depressed counts compared to similar hours with lower humidity (e.g., rows 14\u201316 with hum ~0.72, cnt ~94\u2013110).\n\nNote: `casual` and `registered` were excluded since cnt = casual + registered; they are components, not independent predictors.",
+    "answer_format": "feature_ranked_list",
+    "thinking": "Let me analyze the dataset to determine which features matter most for predicting `cnt` (total bike rental count).\n\nLooking at the columns:\n- `cnt` = `casual` + `registered` (so these are direct components, not independent predictors)\n- `hr` - hour of day, likely very important as bike usage varies dramatically by hour (e.g., rush hours show high counts)\n- `temp`/`atemp` - temperature, warmer temps likely correlate with more rentals\n- `hum` - humidity\n- `windspeed` - wind speed\n- `season` - season of year\n- `weathersit` - weather situation\n- `workingday` - whether it's a working day\n\n\n- `weekday` - day of week\n- `yr` - year\n- `holiday` - holiday or not\n- `mnth` - month\n\nHour is clearly the dominant predictor\u2014there's a massive spike during commute times (8am and 5-6pm with counts reaching 200+) while overnight hours barely register. Working days show pronounced rush hour peaks that differ from non-working days, suggesting this interaction matters too.\n\nTemperature and weather both seem to influence demand, with warmer conditions and clearer skies correlating with higher counts. I should drop the registered and casual columns since they're components of the target variable, not independent features. Humidity might also play a role, though I need to examine its relationship more carefully."
+  },
+  {
+    "dataset": "bike_sharing_100",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "claude-sonnet-4-5-20250929",
+    "question": "Which columns matter most for understanding or predicting cnt? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "hr",
+      "workingday",
+      "registered",
+      "weathersit",
+      "row_id"
+    ],
+    "model_answer": "\n1. hr (hour) - Shows strong pattern with cnt, e.g., commute hours (8am, 17-18pm) have significantly higher counts (150-200+) vs. late night/early morning (1-6)\n2. registered - Directly correlates with cnt as a component; registered users form the majority of total count (e.g., row 78: registered=177, cnt=179)\n3. workingday - Distinguishes usage patterns; workdays show distinct commute peaks while non-workdays have different patterns (compare rows 52-69 workday=1 vs rows 1-24 workday=0)\n4. casual - Second component of cnt; contributes notably during certain hours and conditions (e.g., row 14: casual=47 significantly impacts cnt=94)\n5. weathersit (weather situation) - Affects ridership levels; lower values (better weather) correlate with higher counts in similar time periods\n",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "bike_sharing_100",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "gpt-4o",
+    "question": "Which columns matter most for understanding or predicting cnt? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "hr",
+      "workingday",
+      "registered",
+      "weathersit",
+      "row_id"
+    ],
+    "model_answer": "1. registered\n2. casual\n3. hr\n4. weekday\n5. workingday",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "bike_sharing_100",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "gpt-4o-mini",
+    "question": "Which columns matter most for understanding or predicting cnt? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "hr",
+      "workingday",
+      "registered",
+      "weathersit",
+      "row_id"
+    ],
+    "model_answer": "1. registered - Directly impacts cnt as it represents the number of users with registrations.  \n2. hr - Indicates the hour of the day, which has a clear relationship with bike usage patterns.  \n3. temp - Affects the attractiveness of biking, as temperature influences user comfort levels.  \n4. hum - Humidity can deter outdoor activities, including biking, thus impacting cnt.  \n5. atemp - Actual temperature affects biking preference, capturing user response to weather.",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "vgsales_100",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "claude-opus-4-6",
+    "question": "Which columns matter most for understanding or predicting Global_Sales? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "Genre",
+      "Name",
+      "row_id",
+      "EU_Sales",
+      "Year"
+    ],
+    "model_answer": "Top 5 features (most to least important), noting the CSV headers are misaligned with actual data:\n\n1. **Genre** (actual: NA_Sales) \u2014 Largest regional sales component; NA sales often account for 40\u201350% of Global_Sales (e.g., Wii Sports: 41.49 of 82.74). Highest magnitude and variance.\n\n2. **Name** (actual: EU_Sales) \u2014 Second-largest contributor; consistently significant for top titles (e.g., Wii Sports: 29.02; FIFA 16: 6.06 of 8.49).\n\n3. **Year** (actual: JP_Sales) \u2014 Critical for Japanese-origin franchises (e.g., Pok\u00e9mon Red/Blue: 10.22 JP of 31.37 global; Final Fantasy VII: 3.28).\n\n4. **EU_Sales** (actual: Other_Sales) \u2014 Smaller but meaningful; notably high for some titles (GTA San Andreas: 10.57 of 20.81).\n\n5. **NA_Sales** (actual: Publisher) \u2014 Publisher identity strongly correlates with sales tier; Nintendo dominates 60%+ of the top 100, and top publishers (Nintendo, Take-Two, Activision) consistently produce the highest-selling games.",
+    "answer_format": "feature_ranked_list",
+    "thinking": "Let me analyze the dataset to determine which features matter most for predicting Global_Sales.\n\nLooking at the columns: JP_Sales, Other_Sales, Publisher, Platform, NA_Sales, Genre, Name, Year, EU_Sales, Global_Sales\n\nWait - the column headers and data don't align properly. Let me re-examine.\n\nHeaders: row_id, JP_Sales, Other_Sales, Publisher, Platform, NA_Sales, Genre, Name, Year, EU_Sales, Global_Sales\n\nRow 1: 1, Wii Sports, Wii, 2006, Sports, Nintendo, 41.49, 29.02, 3.77, 8.46, 82.74\n\n\nI see the issue now - the headers are shifted relative to the actual data. The values are in a different order than the column names suggest, so I need to map them correctly: the numeric sales figures (41.49, 29.02, 3.77, 8.46, 82.74) correspond to NA_Sales, EU_Sales, JP_Sales, Other_Sales, and Global_Sales respectively, while the categorical values line up with Name, Platform, Year, Genre, and Publisher. I'm verifying the calculation: 41.49 + 29.02 + 3.77 + 8.46 equals 82.74, confirming that the numeric columns are regional sales components that sum to the global total. Now I need to map the actual data content back to the CSV column headers to answer the question properly, even though the labels are misaligned with what they contain. I'm realizing the column headers don't actually match what's in the data, so I should just work with what's really there and give a straightforward answer. The regional sales figures are direct components of the total, so they're trivially predictive\u2014what matters more are Publisher (Nintendo clearly dominates the top sellers), Platform, and Genre as meaningful predictors."
+  },
+  {
+    "dataset": "vgsales_100",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "claude-sonnet-4-5-20250929",
+    "question": "Which columns matter most for understanding or predicting Global_Sales? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "Genre",
+      "Name",
+      "row_id",
+      "EU_Sales",
+      "Year"
+    ],
+    "model_answer": "\n1. NA_Sales - Strongest contributor to Global_Sales; North American market represents the largest portion of global sales across most games (e.g., Wii Sports: 41.49 of 82.74 total).\n\n2. EU_Sales - Second largest regional market; European sales consistently represent a significant portion of global totals (e.g., Wii Sports: 29.02 of 82.74).\n\n3. Publisher - Nintendo dominates the top sales rankings, appearing in 60+ of top 100 games; publisher brand power strongly correlates with sales performance.\n\n4. Platform - Platform availability drives sales potential; Wii, DS, and PS2 games dominate top sellers, showing platform install base matters greatly.\n\n5. Genre - Certain genres (Sports, Platform, Shooter) appear frequently in top sales, indicating genre appeal affects commercial success.\n",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "vgsales_100",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "gpt-4o",
+    "question": "Which columns matter most for understanding or predicting Global_Sales? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "Genre",
+      "Name",
+      "row_id",
+      "EU_Sales",
+      "Year"
+    ],
+    "model_answer": "1. NA_Sales\n2. EU_Sales\n3. JP_Sales\n4. Other_Sales\n5. Publisher",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "vgsales_100",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "gpt-4o-mini",
+    "question": "Which columns matter most for understanding or predicting Global_Sales? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "Genre",
+      "Name",
+      "row_id",
+      "EU_Sales",
+      "Year"
+    ],
+    "model_answer": "1. JP_Sales - Strong correlation with Global_Sales among top-ranked games, indicating major sales influence in Japan.\n2. NA_Sales - Significant contributor to overall performance, reflecting the importance of the North American market.\n3. EU_Sales - Represents European market impact, essential for comprehensive sales analysis.\n4. Publisher - Influence of publishers on game sales is notable, as different publishers may have varying reach and marketing power.\n5. Genre - Classification provides insights into consumer preferences, impacting sales trends across different demographics.",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "bike_sharing_500",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "claude-opus-4-6",
+    "question": "Which columns matter most for understanding or predicting cnt? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "hr",
+      "workingday",
+      "registered",
+      "weathersit",
+      "weekday"
+    ],
+    "model_answer": "Top 5 features for predicting cnt, ranked:\n\n1. **hr** \u2013 Most important independent feature. Rush-hour peaks (hr 8, 17\u201318) regularly produce counts of 150\u2013250, while overnight hours (0\u20135) yield 1\u201310. Hour alone explains the majority of variance.\n\n2. **registered** \u2013 Dominates cnt arithmetically (cnt = registered + casual). On workdays, registered riders account for 90%+ of cnt, making it the single strongest numeric predictor.\n\n3. **temp** (and correlated atemp) \u2013 Warmer periods (temp \u2265 0.3) consistently show higher counts than cold periods (temp \u2264 0.12). Compare Jan 1 midday (~84\u2013110 cnt at temp 0.42\u20130.46) vs. Jan 9 midday (~49\u201383 cnt at temp 0.12\u20130.20).\n\n4. **workingday** \u2013 Determines the demand pattern: working days show sharp twin commute peaks (hr 8 & 17\u201318), while weekends/holidays show a broad midday hump driven by casual riders. This interacts strongly with hr.\n\n5. **weathersit** \u2013 Adverse weather suppresses ridership. Rows with weathersit = 3 (light rain/snow) show noticeably lower counts than weathersit = 1 (clear), even at the same hour and temperature (e.g., Jan 11 evening, weathersit 3: cnt 32\u201351 vs. comparable clear days: 70+).",
+    "answer_format": "feature_ranked_list",
+    "thinking": "Let me analyze the dataset to determine which features are most important for predicting `cnt` (total bike rentals).\n\nLooking at the columns:\n- `mnth` - date string\n- `hum` - humidity\n- `atemp` - feeling temperature\n- `temp` - temperature\n- `registered` - registered user rentals\n- `yr` - year\n- `windspeed` - wind speed\n- `weekday` - day of week\n- `season` - season\n- `dteday` - normalized day\n- `holiday` - holiday flag\n- `weathersit` - weather situation\n- `casual` - casual user rentals\n- `workingday` - working day flag\n\n\n- `hr` - hour of day\n- `cnt` - total count (target)\n\nSince `cnt` is the sum of casual and registered rentals, I should focus on the actual predictive features. The hour of day shows the strongest pattern\u2014rush hours like 8, 17, and 18 have counts of 150-250, while late night hours drop to just 1-8, indicating clear commuting peaks. The registered component is a direct part of the total, so I need to look at what drives the underlying demand.\n\nWorking days show distinct commute spikes at hours 8 and 17-18 from registered riders, while non-working days have a different shape with casual riders peaking midday. Temperature also matters\u2014warmer conditions correlate with higher ridership compared to cold days.\n\nNow I'm ranking the features by importance: hour is the strongest independent predictor with massive variation between rush hours and nighttime, followed by registered and casual (though these are technically components of the target). Temperature and working day status shape the overall demand patterns, while weather conditions and humidity have secondary effects on ridership. I'm settling on including registered as a key feature despite its definitional link to cnt, since it's the dominant component of the target variable and genuinely predictive, though I should note this relationship in my answer."
+  },
+  {
+    "dataset": "bike_sharing_500",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "claude-sonnet-4-5-20250929",
+    "question": "Which columns matter most for understanding or predicting cnt? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "hr",
+      "workingday",
+      "registered",
+      "weathersit",
+      "weekday"
+    ],
+    "model_answer": "1. hr (hour) - Shows clear daily pattern with peaks during commute hours (8am, 5-6pm) reaching 200+ rentals vs overnight lows of 1-10\n2. workingday - Distinguishes weekday commute patterns (high at rush hours) from weekend/holiday leisure patterns (more distributed throughout day)\n3. registered - Directly tracks non-casual users and comprises majority of cnt (typically 70-90% of total rentals)\n4. temp/atemp - Higher temperatures correlate with increased rentals; visible progression from cold January days (0.02-0.1 normalized temp, ~10-50 rentals) to warmer periods (0.3-0.4, ~100+ rentals)\n5. weathersit - Clear weather (lower values ~0.3-0.5) associated with higher rentals vs poor weather (0.8-0.9+) showing reduced demand",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "bike_sharing_500",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "gpt-4o",
+    "question": "Which columns matter most for understanding or predicting cnt? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "hr",
+      "workingday",
+      "registered",
+      "weathersit",
+      "weekday"
+    ],
+    "model_answer": "1. registered\n2. casual\n3. hr\n4. weathersit\n5. atemp",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "bike_sharing_500",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "gpt-4o-mini",
+    "question": "Which columns matter most for understanding or predicting cnt? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "hr",
+      "workingday",
+      "registered",
+      "weathersit",
+      "weekday"
+    ],
+    "model_answer": "\n1. registered - Higher registration counts are highly associated with increased bike rental counts.\n2. temp - Temperature has a strong correlation with bike rentals, as higher temperatures typically result in more rentals.\n3. weathersit - Weather conditions (categorical) significantly influence rental behavior on different days.\n4. holiday - The presence of holidays affects bike rental patterns, with rentals typically increasing.\n5. workingday - Whether the day is a working day or not plays a role in rental counts, affecting user availability.",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "vgsales_500",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "claude-opus-4-6",
+    "question": "Which columns matter most for understanding or predicting Global_Sales? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "Genre",
+      "Name",
+      "row_id",
+      "EU_Sales",
+      "Year"
+    ],
+    "model_answer": "Top 5 features for predicting Global_Sales (using column headers as given, noting they are misaligned with actual data):\n\n1. **Genre** (actually contains NA_Sales values) \u2013 Largest regional sales component; consistently the biggest contributor to Global_Sales (e.g., 41.49 out of 82.74 for Wii Sports).\n\n2. **Name** (actually contains EU_Sales values) \u2013 Second-largest regional component; especially dominant for European-popular franchises like FIFA.\n\n3. **Year** (actually contains JP_Sales values) \u2013 Critical for Japan-heavy franchises (Dragon Quest, Monster Hunter, Final Fantasy), where it can be the dominant component.\n\n4. **EU_Sales** (actually contains Other_Sales values) \u2013 Completes the regional breakdown; Global_Sales \u2248 Genre + Name + Year + EU_Sales arithmetically.\n\n5. **NA_Sales** (actually contains Publisher names) \u2013 Best categorical predictor; Nintendo titles dominate the top sellers, and publisher identity (Activision, Take-Two, etc.) strongly correlates with sales tiers.",
+    "answer_format": "feature_ranked_list",
+    "thinking": "Let me analyze the dataset to determine which columns matter most for predicting Global_Sales.\n\nLooking at the columns: JP_Sales, Other_Sales, Publisher, Platform, NA_Sales, Genre, Name, Year, EU_Sales, Global_Sales\n\nWait, the column headers seem mismatched with the data. Let me re-examine.\n\nThe header says: row_id, JP_Sales, Other_Sales, Publisher, Platform, NA_Sales, Genre, Name, Year, EU_Sales, Global_Sales\n\nBut looking at row 1: 1, Wii Sports, Wii, 2006.0, Sports, Nintendo, 41.49, 29.02, 3.77, 8.46, 82.74\n\n\nSo the actual column order is: row_id, Name, Platform, Year, Genre, Publisher, NA_Sales, EU_Sales, JP_Sales, Other_Sales, Global_Sales. The headers are completely off\u2014I need to map the data to the correct columns. actually Other_Sales - Global_Sales = 82.74 \u2192 This is correct\n\nSo the columns are mislabeled. The actual mapping based on the data:\n- Column labeled \"JP_Sales\" \u2192 Name\n- Column labeled \"Other_Sales\" \u2192 Platform\n- Column labeled \"Publisher\" \u2192 Year\n- Column labeled \"Platform\" \u2192 Genre\n- Column labeled \"NA_Sales\" \u2192 Publisher\n- Column labeled \"Genre\" \u2192 NA_Sales (numeric)\n- Column labeled \"Name\" \u2192 EU_Sales (numeric)\n- Column labeled \"Year\" \u2192 JP_Sales (numeric)\n- Column labeled \"EU_Sales\" \u2192 Other_Sales (numeric)\n- Global_Sales \u2192 Global_Sales (numeric)\n\nSo Global_Sales = NA_Sales + EU_Sales + JP_Sales + Other_Sales (approximately)\n\nLet me verify with row 1: 41.49 + 29.02 + 3.77 + 8.46 = 82.74 \u2713\n\nThe four regional sales components\u2014NA, EU, JP, and Other\u2014are literally what sum to Global_Sales, so they're the most predictive features. But since the question asks about understanding the data, I should also think about the categorical features like Platform, Genre, and Publisher that might influence sales patterns. I need to be careful to reference the actual column names as they appear in the CSV header, not the mislabeled ones. Since the headers are misaligned with the actual data, I need to work with what's actually in each column. The numeric features that compose Global_Sales are the four regional sales columns\u2014the ones labeled Genre, Name, Year, and EU_Sales in the header but containing the actual NA, EU, JP, and Other sales values. For categorical predictors, I'm weighing Publisher, Platform, and Genre, where Publisher shows strong patterns (Nintendo games consistently perform well) and Platform also significantly influences sales outcomes. I'm realizing the column names in the header don't match what the data actually contains, so I should just work with the actual column labels provided and identify which features drive Global_Sales\u2014the regional sales columns are direct components, while categorical variables like Publisher and Platform would be the next most influential factors."
+  },
+  {
+    "dataset": "vgsales_500",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "claude-sonnet-4-5-20250929",
+    "question": "Which columns matter most for understanding or predicting Global_Sales? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "Genre",
+      "Name",
+      "row_id",
+      "EU_Sales",
+      "Year"
+    ],
+    "model_answer": "\n1. NA_Sales - North American sales show the strongest correlation with Global_Sales, as NA represents the largest single regional market (e.g., Wii Sports has 41.49 NA sales out of 82.74 global).\n\n2. EU_Sales - European sales are the second-largest regional component, often contributing 20-40% of global sales (e.g., Wii Sports has 29.02 EU sales).\n\n3. JP_Sales - Japanese sales are significant for certain genres like Role-Playing games and Nintendo titles (e.g., Dragon Quest games show high JP sales relative to other regions).\n\n4. Genre - Genre significantly impacts sales patterns, with Sports, Platform, and Shooter games dominating top sellers, while niche genres like Strategy have lower global sales.\n\n5. Publisher - Major publishers like Nintendo, Activision, and Electronic Arts consistently achieve higher global sales through established franchises and marketing power.\n",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "vgsales_500",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "gpt-4o",
+    "question": "Which columns matter most for understanding or predicting Global_Sales? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "Genre",
+      "Name",
+      "row_id",
+      "EU_Sales",
+      "Year"
+    ],
+    "model_answer": "Year, Genre, Platform, Publisher, NA_Sales",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "vgsales_500",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "gpt-4o-mini",
+    "question": "Which columns matter most for understanding or predicting Global_Sales? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "Genre",
+      "Name",
+      "row_id",
+      "EU_Sales",
+      "Year"
+    ],
+    "model_answer": "[\"JP_Sales\",\"NA_Sales\",\"EU_Sales\",\"Publisher\",\"Genre\"]",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "bike_sharing_1000",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "claude-opus-4-6",
+    "question": "Which columns matter most for understanding or predicting cnt? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "hr",
+      "workingday",
+      "registered",
+      "weathersit",
+      "dteday"
+    ],
+    "model_answer": "Top 5 features for predicting cnt, ranked:\n\n1. **hr** \u2014 Most dominant factor. Rush hours (7\u20139, 17\u201318) consistently show cnt of 150\u2013250, while nighttime hours (0\u20135) show cnt of 1\u201310. This hourly pattern holds across nearly every day in the data.\n\n2. **workingday** \u2014 Completely reshapes the hourly profile. Working days show sharp commute peaks (e.g., hr=8 \u2192 ~180\u2013240, hr=17 \u2192 ~170\u2013210), while non-working days show a broad midday hump (hr=12\u201316 \u2192 ~80\u2013170) driven by casual riders.\n\n3. **temp** (or atemp) \u2014 Clear positive correlation. Warmer days (temp \u2265 0.30) routinely produce peak-hour counts of 150\u2013250+, while cold days (temp \u2264 0.15) rarely exceed 100 even at rush hour. temp and atemp are nearly redundant.\n\n4. **weathersit** \u2014 Bad weather sharply reduces ridership. Rows with weathersit=3 (light rain/snow) show cnt roughly 30\u201360% lower than weathersit=1 (clear) at comparable hours (e.g., Jan 26 weathersit=3/4: peak cnt ~72 vs. typical workday peak of 180+).\n\n5. **hum** \u2014 High humidity suppresses counts. At similar hours and temperatures, rows with hum \u2265 0.90 show noticeably lower cnt (e.g., Feb 5 hum=1.0 at hr=12 \u2192 cnt=52) compared to lower-humidity counterparts (hum ~0.4 at hr=12 \u2192 cnt=80\u2013100+).",
+    "answer_format": "feature_ranked_list",
+    "thinking": "Let me analyze the dataset to determine which features matter most for predicting `cnt` (total bike rental count).\n\nLooking at the data:\n- `cnt` = `casual` + `registered` (so these are components, not predictors)\n- Key features: `hr`, `temp`/`atemp`, `workingday`/`weekday`, `weathersit`, `season`, `hum`, `windspeed`, `yr`, `holiday`\n\nLet me think about patterns:\n\n1. **hr (hour)**: This is clearly the most important. Rush hours (7-9, 17-19) show dramatically higher counts (150-250) vs. nighttime hours (0-5) showing counts of 1-10. \n\nThis pattern holds consistently across the dataset.\n\n2. **workingday**: Commute patterns shift dramatically between working days and weekends\u2014working days spike during morning and evening rush hours with heavy registered user traffic, while non-working days show a gentler midday peak with more casual riders.\n\n3. **temp/atemp**: Warmer conditions drive higher rental counts, particularly for casual users, and these two variables are highly correlated with each other.\n\n4. **weathersit**: Clear weather boosts demand significantly, while snow or rain conditions suppress it noticeably.\n\n5. **hum (humidity)**: Higher humidity tends to suppress rental counts.\n\nWindspeed has some effect but less pronounced, season's influence is mostly captured by temperature, and registered/casual are just components of the target variable. My ranking so far: hour shows the strongest signal, followed by workingday which fundamentally reshapes the hourly pattern, then temperature."
+  },
+  {
+    "dataset": "bike_sharing_1000",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "claude-sonnet-4-5-20250929",
+    "question": "Which columns matter most for understanding or predicting cnt? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "hr",
+      "workingday",
+      "registered",
+      "weathersit",
+      "dteday"
+    ],
+    "model_answer": "1. hr (hour of day) - Shows strong temporal patterns with clear peaks during commute hours (8am, 17-18pm) having 150-250 rentals versus late night/early morning with <20 rentals\n2. workingday - Distinguishes between workday commute patterns (sharp peaks at hours 8, 17-18) versus weekend/holiday leisure patterns (more gradual mid-day increases)\n3. registered - Directly represents the primary component of total rentals, typically accounting for 70-95% of cnt values across different conditions\n4. temp/atemp - Higher temperatures (0.3-0.4) correlate with significantly higher rental counts (100-200) compared to lower temperatures (0.1-0.2) with 20-60 rentals\n5. weathersit - Clear weather (lower values ~0.3-0.5) associates with higher rentals while poor weather (higher values ~0.8-1.0) reduces demand substantially",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "bike_sharing_1000",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "gpt-4o",
+    "question": "Which columns matter most for understanding or predicting cnt? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "hr",
+      "workingday",
+      "registered",
+      "weathersit",
+      "dteday"
+    ],
+    "model_answer": "1. registered\n2. casual\n3. hr\n4. weathersit\n5. season",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "bike_sharing_1000",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "gpt-4o-mini",
+    "question": "Which columns matter most for understanding or predicting cnt? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "hr",
+      "workingday",
+      "registered",
+      "weathersit",
+      "dteday"
+    ],
+    "model_answer": "[\"atemp\", \"temp\", \"hour\", \"hum\", \"windspeed\"]",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "vgsales_1000",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "claude-opus-4-6",
+    "question": "Which columns matter most for understanding or predicting Global_Sales? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "Name",
+      "Year",
+      "Platform",
+      "row_id",
+      "Rank"
+    ],
+    "model_answer": "Top 5 features ranked by importance for predicting Global_Sales:\n\n1. **NA_Sales** \u2014 Most important. North American sales are consistently the largest regional component (e.g., Wii Sports: 41.49 of 82.74). It has the strongest linear relationship with Global_Sales since it often accounts for 30\u201350%+ of the total.\n\n2. **EU_Sales** \u2014 Second-largest regional contributor. For many top titles (e.g., FIFA 16 PS4: 6.06 EU vs 1.11 NA), EU sales can even dominate, making it critical.\n\n3. **JP_Sales** \u2014 Especially important for Japanese-centric franchises (e.g., Dragon Quest, Monster Hunter, Final Fantasy) where JP_Sales can be the majority of Global_Sales. More variable across genres than NA/EU.\n\n4. **Other_Sales** \u2014 Completes the additive relationship (Global_Sales \u2248 NA + EU + JP + Other). While typically the smallest component, it can be substantial for certain titles (e.g., GTA San Andreas: 10.57 Other_Sales).\n\n5. **Genre** \u2014 Among non-sales features, Genre is the strongest predictor. Sports, Platform, and Shooter titles cluster at the top of Global_Sales, while Strategy and Puzzle titles tend toward lower sales. Genre also mediates the regional sales mix (e.g., Role-Playing skews toward JP_Sales; Shooter skews toward NA_Sales).\n\nNote: Global_Sales is essentially the sum of the four regional sales columns, so those four dominate by construction. Platform and Publisher are also informative categorical features but rank below Genre in discriminative power.",
+    "answer_format": "feature_ranked_list",
+    "thinking": "The user wants to know which columns matter most for predicting Global_Sales. Let me analyze the dataset.\n\nThe columns are: Rank, Publisher, NA_Sales, Genre, JP_Sales, EU_Sales, Name, Year, Other_Sales, Platform, Global_Sales\n\nGlobal_Sales appears to be the sum of regional sales: NA_Sales + EU_Sales + JP_Sales + Other_Sales.\n\nLet me rank the features:\n\n1. **NA_Sales** - North American sales are typically the largest component of Global_Sales. Looking at the data, NA_Sales values are often the largest regional contributor.\n\n2. **EU_Sales** - European sales are the second largest regional contributor in many cases.\n\n\n3. **JP_Sales** - Japanese sales matter too, particularly for Nintendo and RPG titles.\n4. **Other_Sales** - The remaining regional sales round out the total.\n5. **Genre** - Different genres show distinct sales patterns, with Sports, Platform, and Shooter games typically performing well globally.\n\nSince Global_Sales is mathematically the sum of the four regional sales columns, those are inherently the strongest predictors. But if I'm looking for meaningful non-trivial features beyond just the components themselves, Genre and Platform would be the next most informative.\n\nLet me rank the top five most important columns."
+  },
+  {
+    "dataset": "vgsales_1000",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "claude-sonnet-4-5-20250929",
+    "question": "Which columns matter most for understanding or predicting Global_Sales? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "Name",
+      "Year",
+      "Platform",
+      "row_id",
+      "Rank"
+    ],
+    "model_answer": "\n1. NA_Sales - North American sales are consistently the largest component of Global_Sales across most titles, often representing 40-60% of the total\n2. EU_Sales - European sales are typically the second-largest regional component, contributing 20-40% to Global_Sales for most games\n3. JP_Sales - Japanese sales show high variability and are critical for certain titles (particularly Japanese franchises like Pokemon, Dragon Quest), sometimes exceeding other regions\n4. Genre - Genre strongly influences sales patterns, with Sports, Action, Shooter, and Platform games dominating the top-selling titles\n5. Platform - Platform determines market reach and potential audience size, with platforms like Wii, PS2, DS, and PS3 showing consistently higher Global_Sales in the dataset\n",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "vgsales_1000",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "gpt-4o",
+    "question": "Which columns matter most for understanding or predicting Global_Sales? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "Name",
+      "Year",
+      "Platform",
+      "row_id",
+      "Rank"
+    ],
+    "model_answer": "1. NA_Sales\n2. EU_Sales\n3. JP_Sales\n4. Other_Sales\n5. Platform",
+    "answer_format": "feature_ranked_list"
+  },
+  {
+    "dataset": "vgsales_1000",
+    "injector": "name_swap_injection",
+    "template_id": "fi_leakage_topk_v0",
+    "model": "gpt-4o-mini",
+    "question": "Which columns matter most for understanding or predicting Global_Sales? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+    "expected_answer": [
+      "Name",
+      "Year",
+      "Platform",
+      "row_id",
+      "Rank"
+    ],
+    "model_answer": "{\"features\":[{\"name\":\"NA_Sales\",\"justification\":\"Strong correlation observed, with higher NA sales often leading to higher global sales.\"},{\"name\":\"EU_Sales\",\"justification\":\"Similar pattern as NA sales, showing that EU sales contribute significantly to global sales figures.\"},{\"name\":\"JP_Sales\",\"justification\":\"While smaller, notable contributions from Japan also affect global totals, particularly for certain titles.\"},{\"name\":\"Publisher\",\"justification\":\"Publisher identity affects sales trends, revealing how brand strength can impact global sales.\"},{\"name\":\"Year\",\"justification\":\"Game release year can indicate market trends and shifts, impacting overall global sales of consoles and games.\"}]}",
+    "answer_format": "feature_ranked_list"
+  }
+]
