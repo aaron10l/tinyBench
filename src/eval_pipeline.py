@@ -116,6 +116,7 @@ def query_anthropic(
 ) -> tuple[str, str | None]:
     """Query an Anthropic model using tool-use for structured output."""
     user_content = f"## Dataset\n{csv_text}\n\n## Question\n{question}"
+    use_thinking = model in THINKING_MODELS
     kwargs: dict = dict(
         model=model,
         max_tokens=16_000,
@@ -128,9 +129,10 @@ def query_anthropic(
                 "input_schema": ANSWER_SCHEMA,
             }
         ],
-        tool_choice={"type": "tool", "name": "submit_answer"},
+        # Forced tool_choice is incompatible with extended thinking; use "auto" instead.
+        tool_choice={"type": "auto"} if use_thinking else {"type": "tool", "name": "submit_answer"},
     )
-    if model in THINKING_MODELS:
+    if use_thinking:
         kwargs["thinking"] = {"type": "adaptive"}
 
     msg = client.messages.create(**kwargs)

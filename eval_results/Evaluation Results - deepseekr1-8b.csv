@@ -1,0 +1,126 @@
+Model,Dataset,Injector,Question,Expected Answer,Model Answer,Result
+deepseek-r1:8b,bike_sharing_100,simpsons_paradox_injection,"Between period A and period B (defined by before and after 2011-01-03 in dteday), did cnt improve, worsen, or stay about the same? Return exactly one of: IMPROVED, WORSENED, UNCHANGED.",IMPROVED,"The count (cnt) has worsened after 2011-01-03 compared to before. The average cnt before the cutoff was 171.5, while the average after was 134, indicating a decrease.",INCORRECT
+deepseek-r1:8b,bike_sharing_100,name_swap_injection,"Which columns matter most for understanding or predicting cnt? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.","var_gkmp, var_wb8o, m_lv2o, feat_jphe, field_j9up","1. temp: Temperature directly influences cycling behavior; comfortable temperatures correlate with higher 'cnt'. 
+
+2. atemp: Feeling temperature provides a more accurate perception of weather, strongly linked to 'cnt'. 
+
+3. weekday: Workdays show consistent patterns in 'cnt', making it a key predictor. 
+
+4. workingday: Captures commuting patterns, which significantly impact 'cnt'. 
+
+5. weather: Bad weather reduces cycling, making it a critical factor for prediction. 
+
+
+These columns show clear, consistent patterns with 'cnt' in the data.",INCORRECT
+deepseek-r1:8b,bike_sharing_100,bad_rows_injection,You can apply exactly one rule based on a single column to exclude problematic rows before analyzing cnt. Which column should the rule be based on? Return a single column name.,_check_flag,The rule should be based on the weathersit column.,INCORRECT
+deepseek-r1:8b,bike_sharing_100,heteroskedastic_injection,"Between groups 15 and 12 (defined by hr), which group should be treated as higher risk with respect to cnt? Return exactly one group name.",15,hr=15,CORRECT
+deepseek-r1:8b,bike_sharing_100,changepoint_injection,"Column cnt is a model’s output score over the rows in this table. Should the model be retrained? Return exactly one of: YES, NO. If YES, return the earliest row_id value after which retraining is warranted.","YES, 32",NO,INCORRECT
+deepseek-r1:8b,bike_sharing_500,name_swap_injection,"Which columns matter most for understanding or predicting cnt? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.","var_gkmp, var_wb8o, m_lv2o, feat_jphe, field_03nh","1. weathersit: Weather conditions directly impact rental demand—bad weather likely reduces counts, while good weather increases them. 
+
+2. atemp: Feeling temperature is a better proxy for human comfort, strongly influencing rental decisions. 
+
+3. temp: Actual temperature can correlate with rental activity, especially in moderate climates. 
+
+4. season: Seasonality (e.g., summer vs. winter) creates consistent patterns in rental counts. 
+
+5. weekday: Weekly patterns (weekends vs. weekdays) may show varying demand, making this a key predictor. 
+
+
+These features are grounded in clear patterns from the data, such as higher counts in pleasant weather and specific seasons, and lower counts on weekends or during bad weather.",INCORRECT
+deepseek-r1:8b,bike_sharing_500,bad_rows_injection,You can apply exactly one rule based on a single column to exclude problematic rows before analyzing cnt. Which column should the rule be based on? Return a single column name.,_check_flag,holiday,INCORRECT
+deepseek-r1:8b,bike_sharing_500,changepoint_injection,"Column cnt is a model’s output score over the rows in this table. Should the model be retrained? Return exactly one of: YES, NO. If YES, return the earliest row_id value after which retraining is warranted.","YES, 387",NO,INCORRECT
+deepseek-r1:8b,bike_sharing_1000,name_swap_injection,"Which columns matter most for understanding or predicting cnt? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.","var_gkmp, var_wb8o, m_lv2o, feat_jphe, feat_38m8","The most important columns for understanding or predicting cnt are:
+
+
+1. weathersit – Weather conditions directly impact biking behavior; good weather increases cnt. 
+
+2. temp – Temperature strongly correlates with demand; higher values predict higher counts. 
+
+3. atemp – Feels-like temperature provides a more accurate comfort-based prediction. 
+
+4. season – Seasonal patterns (e.g., summer peaks) repeat annually and influence usage. 
+
+5. mnth – Monthly trends (e.g., summer months) capture recurring demand cycles. 
+
+
+These features show clear, consistent patterns with cnt, making them the most predictive.",INCORRECT
+deepseek-r1:8b,bike_sharing_1000,bad_rows_injection,You can apply exactly one rule based on a single column to exclude problematic rows before analyzing cnt. Which column should the rule be based on? Return a single column name.,_check_flag,"The column to base the rule on is weathersit. This column indicates weather conditions, and rows with values indicating severe weather (e.g., value 4) may contain unreliable or problematic data for analyzing the 'cnt' column. By excluding these rows, the dataset can be cleaned before proceeding with the analysis. 
+
+
+Final Answer:
+
+\boxed{\text{weathersit}}",INCORRECT
+deepseek-r1:8b,bike_sharing_1000,changepoint_injection,"Column cnt is a model’s output score over the rows in this table. Should the model be retrained? Return exactly one of: YES, NO. If YES, return the earliest row_id value after which retraining is warranted.","YES, 364","The model should be retrained because the ""cnt"" score falls below the assumed threshold of 0.4 at row_id 2. Therefore, the earliest row_id after which retraining is warranted is 2. 
+
+
+Answer: YES",PARTIAL
+deepseek-r1:8b,vgsales_100,simpsons_paradox_injection,"Between period A and period B (defined by before and after Puzzle in Genre), did Global_Sales improve, worsen, or stay about the same? Return exactly one of: IMPROVED, WORSENED, UNCHANGED.",IMPROVED,"The total Global_Sales for period A (games released before the first ""Puzzle"" game, which is Pac-Man in 1982) is 7.81 million units. For period B (games released after 1982), the total Global_Sales is significantly higher, as it includes all other games in the dataset. Therefore, the Global_Sales improved from period A to period B.
+
+
+Answer: Improved",CORRECT
+deepseek-r1:8b,vgsales_100,name_swap_injection,"Which columns matter most for understanding or predicting Global_Sales? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.","f_uxcq, val_4x0c, attr_god9, x_gynd, x_n36h","1. Critic_Score 
+
+2. User_Score 
+
+3. Platform 
+
+4. EU_Sales 
+
+5. NA_Sales 
+
+
+Justification:
+
+- Critic_Score and User_Score reflect game quality, which directly influences consumer interest and sales. 
+
+- Platform determines market reach, as popular platforms (e.g., PS4, Switch) drive higher sales. 
+
+- EU_Sales and NA_Sales are major regional contributors to Global_Sales, as these markets often have the highest sales volumes.",INCORRECT
+deepseek-r1:8b,vgsales_100,bad_rows_injection,You can apply exactly one rule based on a single column to exclude problematic rows before analyzing Global_Sales. Which column should the rule be based on? Return a single column name.,_check_flag,User_Score,INCORRECT
+deepseek-r1:8b,vgsales_100,changepoint_injection,"Column Global_Sales is a model’s output score over the rows in this table. Should the model be retrained? Return exactly one of: YES, NO. If YES, return the earliest row_id value after which retraining is warranted.","YES, 75",YES 77,CORRECT
+deepseek-r1:8b,vgsales_500,simpsons_paradox_injection,"Between period A and period B (defined by before and after Racing in Genre), did Global_Sales improve, worsen, or stay about the same? Return exactly one of: IMPROVED, WORSENED, UNCHANGED.",IMPROVED,UNCHANGED,INCORRECT
+deepseek-r1:8b,vgsales_500,name_swap_injection,"Which columns matter most for understanding or predicting Global_Sales? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.","f_uxcq, val_4x0c, attr_god9, x_gynd, x_n36h","Based on the data, the columns that most significantly impact or predict Global_Salesare:
+
+
+1. Platform: The platform (e.g., PlayStation, Xbox, Nintendo) directly influences the potential audience size and market reach, making it a key driver of sales.
+
+2. Genre: Different genres (e.g., Action, RPG, Sports) attract varying demographics and market trends, which strongly correlate with sales performance.
+
+3. Critic_Score: Higher critic scores often indicate better game quality and reception, which can boost sales through word-of-mouth and reviews.
+
+4. User_Score: Player ratings reflect real-world engagement and satisfaction, directly influencing purchasing decisions and sales.
+
+5. NA_Sales: Sales in the North American market are a major component of global sales, as this region often leads in market size and influence.
+
+
+These features are prioritized based on their strong correlation with Global_Sales and their ability to capture key factors influencing sales across regions and demographics.",INCORRECT
+deepseek-r1:8b,vgsales_500,heteroskedastic_injection,"Between groups Puzzle and Shooter (defined by Genre), which group should be treated as higher risk with respect to Global_Sales? Return exactly one group name.",Puzzle,Shooter,INCORRECT
+deepseek-r1:8b,vgsales_500,bad_rows_injection,You can apply exactly one rule based on a single column to exclude problematic rows before analyzing Global_Sales. Which column should the rule be based on? Return a single column name.,_check_flag,Publisher,INCORRECT
+deepseek-r1:8b,vgsales_500,changepoint_injection,"Column Global_Sales is a model’s output score over the rows in this table. Should the model be retrained? Return exactly one of: YES, NO. If YES, return the earliest row_id value after which retraining is warranted.","YES, 316",NO,INCORRECT
+deepseek-r1:8b,vgsales_1000,simpsons_paradox_injection,"Between period A and period B (defined by before and after Racing in Genre), did Global_Sales improve, worsen, or stay about the same? Return exactly one of: IMPROVED, WORSENED, UNCHANGED.",IMPROVED,UNCHANGED,INCORRECT
+deepseek-r1:8b,vgsales_1000,name_swap_injection,"Which columns matter most for understanding or predicting Global_Sales? Return up to 5 feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.","val_4x0c, x_n36h, col_8kzm, attr_god9, m_d6bp","1. Platform: Games on more popular platforms (e.g., PlayStation, Xbox) typically have higher sales due to larger user bases. 
+
+2. Genre: Genres like Action, Sports, and RPGs often drive higher sales based on market trends. 
+
+3. Publisher: Established publishers (e.g., Electronic Arts, Sony) have better marketing and distribution, boosting sales. 
+
+4. Year_of_Release: Newer games may benefit from current market trends, though older titles can still perform well. 
+
+5. Critic_Score and User_Score: Higher scores correlate with better reviews and higher sales potential. 
+
+
+These columns are the most influential as they directly impact a game's popularity and sales across regions.",INCORRECT
+deepseek-r1:8b,vgsales_1000,changepoint_injection,"Column Global_Sales is a model’s output score over the rows in this table. Should the model be retrained? Return exactly one of: YES, NO. If YES, return the earliest Rank value after which retraining is warranted.","YES, 873",NO,INCORRECT
+deepseek-r1:8b,vgsales_1000,heteroskedastic_injection,"Between groups Fighting and Sports (defined by Genre), which group should be treated as higher risk with respect to Global_Sales? Return exactly one group name.",Sports,"Based on the analysis of the Global_Sales data for the Fighting and Sports genres:
+
+
+- Fighting: All entries have a Global_Sales of 1.76, resulting in a mean of 1.76 and a standard deviation of 0. This indicates no variability in sales, making it a lower-risk category.
+
+- Sports: The mean is approximately 1.7733, with a standard deviation of approximately 0.0188, indicating slightly more variability in sales.
+
+
+Since higher standard deviation implies higher risk due to greater variability in sales, the Sports genre is considered higher risk compared to Fighting.
+
+
+Answer: Sports",CORRECT
+deepseek-r1:8b,vgsales_1000,bad_rows_injection,You can apply exactly one rule based on a single column to exclude problematic rows before analyzing Global_Sales. Which column should the rule be based on? Return a single column name.,_check_flag,Global_Sales,INCORRECT
