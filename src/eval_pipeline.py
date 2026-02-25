@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -50,6 +51,41 @@ ANSWER_SCHEMA = {
     "additionalProperties": False,
 }
 
+OLLAMA_V1_BASE_URL = "http://localhost:11434/v1"
+MAX_TOOL_ITER = 10
+
+SYSTEM_PROMPT_TOOLS = (
+    "You are a data analyst. You are given a CSV dataset and a question about it.\n"
+    "You have access to a Python execution tool. The variable df is already loaded "
+    "as a pandas DataFrame. Available libraries: pandas (as pd), numpy (as np), scipy.\n"
+    "Use run_python to compute values. When you have the final answer, respond with text only."
+)
+
+TOOL_RUN_PYTHON = {
+    "type": "function",
+    "function": {
+        "name": "run_python",
+        "description": "Execute Python code. df is pre-loaded as a pandas DataFrame. Use print() to produce output.",
+        "parameters": {
+            "type": "object",
+            "properties": {"code": {"type": "string"}},
+            "required": ["code"],
+            "additionalProperties": False,
+        },
+    },
+}
+
+ANTHROPIC_TOOL_RUN_PYTHON = {
+    "name": "run_python",
+    "description": "Execute Python code. df is pre-loaded as a pandas DataFrame. Use print() to produce output.",
+    "input_schema": {
+        "type": "object",
+        "properties": {"code": {"type": "string"}},
+        "required": ["code"],
+        "additionalProperties": False,
+    },
+}
+
 # ---------------------------------------------------------------------------
 # Provider detection
 # ---------------------------------------------------------------------------
@@ -67,6 +103,29 @@ def detect_provider(model: str) -> str:
         "Ollama models contain ':', Anthropic models start with 'claude', "
         "OpenAI models start with 'gpt-', 'o1', 'o3', or 'o4'."
     )
+
+
+# ---------------------------------------------------------------------------
+# Tool-support detection
+# ---------------------------------------------------------------------------
+
+_ollama_tool_cache: dict[str, bool] = {}
+
+
+def check_ollama_tool_support(model: str) -> bool:
+    """Return True if the model's Ollama template supports tool calling."""
+    if model in _ollama_tool_cache:
+        return _ollama_tool_cache[model]
+    try:
+        r = subprocess.run(
+            ["ollama", "show", model, "--modelfile"],
+            capture_output=True, text=True, timeout=15,
+        )
+        supported = r.returncode == 0 and ".ToolCalls" in r.stdout
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        supported = False
+    _ollama_tool_cache[model] = supported
+    return supported
 
 
 # ---------------------------------------------------------------------------
@@ -180,6 +239,151 @@ def query_openai(
     return answer, None
 
 
+def query_ollama_tools(
+    _client: None,
+    model: str,
+    csv_text: str,
+    question: str,
+    sandbox: "PythonSandbox",
+    csv_path: Path,
+) -> tuple[str, str | None]:
+    """Tool-calling query via Ollama native /api/chat endpoint."""
+    messages: list[dict] = [
+        {"role": "system", "content": SYSTEM_PROMPT_TOOLS},
+        {"role": "user", "content": f"## Dataset\n{csv_text}\n\n## Question\n{question}"},
+    ]
+    thinking: str | None = None
+
+    for i in range(MAX_TOOL_ITER):
+        payload = {
+            "model": model,
+            "stream": False,
+            "messages": messages,
+            "tools": [TOOL_RUN_PYTHON],
+        }
+        resp = requests.post(OLLAMA_URL, json=payload, timeout=120)
+        resp.raise_for_status()
+        message = resp.json().get("message", {})
+
+        if message.get("thinking"):
+            thinking = message["thinking"]
+
+        tool_calls = message.get("tool_calls") or []
+
+        if not tool_calls:
+            return message.get("content", ""), thinking
+
+        messages.append({
+            "role": "assistant",
+            "content": message.get("content", ""),
+            "tool_calls": tool_calls,
+        })
+
+        for tc in tool_calls:
+            args = tc.get("function", {}).get("arguments", {})
+            if isinstance(args, str):
+                try:
+                    args = json.loads(args)
+                except json.JSONDecodeError:
+                    args = {}
+            code = args.get("code", "")
+            print(f"\n[sandbox] running code:\n{code}")
+            result_str = sandbox.run(code, csv_path)
+            print(f"[sandbox] result: {result_str!r}")
+            messages.append({"role": "tool", "content": result_str})
+
+    return "", thinking
+
+
+def query_openai_style_tools(
+    client,        # openai.OpenAI (real or pointed at localhost:11434/v1)
+    model: str,
+    csv_text: str,
+    question: str,
+    sandbox: "PythonSandbox",
+    csv_path: Path,
+) -> tuple[str, str | None]:
+    """Tool-calling query via OpenAI-compatible API (works for both OpenAI and Ollama)."""
+    messages: list[dict] = [
+        {"role": "system", "content": SYSTEM_PROMPT_TOOLS},
+        {"role": "user", "content": f"## Dataset\n{csv_text}\n\n## Question\n{question}"},
+    ]
+    for _ in range(MAX_TOOL_ITER):
+        resp = client.chat.completions.create(
+            model=model, max_tokens=2048, messages=messages,
+            tools=[TOOL_RUN_PYTHON], tool_choice="auto",
+        )
+        msg = resp.choices[0].message
+        messages.append(msg.model_dump(exclude_unset=True))
+
+        if not msg.tool_calls:
+            return msg.content or "", None  # final answer
+
+        for tc in msg.tool_calls:
+            try:
+                args = json.loads(tc.function.arguments)
+            except json.JSONDecodeError:
+                args = {}
+            code = args.get("code", "")
+            print(f"\n[sandbox] running code:\n{code}")
+            result_str = sandbox.run(code, csv_path)
+            print(f"[sandbox] result: {result_str!r}")
+            messages.append({"role": "tool", "tool_call_id": tc.id, "content": result_str})
+
+    return "", None  # max iterations reached
+
+
+def query_anthropic_tools(
+    client,        # anthropic.Anthropic
+    model: str,
+    csv_text: str,
+    question: str,
+    sandbox: "PythonSandbox",
+    csv_path: Path,
+) -> tuple[str, str | None]:
+    """Tool-calling query via Anthropic API."""
+    use_thinking = model in THINKING_MODELS
+    kwargs: dict = dict(
+        model=model, max_tokens=16_000, system=SYSTEM_PROMPT_TOOLS,
+        tools=[ANTHROPIC_TOOL_RUN_PYTHON],
+        tool_choice={"type": "auto"},
+    )
+    if use_thinking:
+        kwargs["thinking"] = {"type": "adaptive"}
+
+    messages: list[dict] = [
+        {"role": "user", "content": f"## Dataset\n{csv_text}\n\n## Question\n{question}"},
+    ]
+    accumulated_thinking: str | None = None
+
+    for _ in range(MAX_TOOL_ITER):
+        kwargs["messages"] = messages
+        msg = client.messages.create(**kwargs)
+
+        tool_use_blocks, text_blocks = [], []
+        for block in msg.content:
+            if block.type == "thinking":
+                accumulated_thinking = block.thinking
+            elif block.type == "tool_use":
+                tool_use_blocks.append(block)
+            elif block.type == "text":
+                text_blocks.append(block.text)
+
+        messages.append({"role": "assistant", "content": msg.content})
+
+        if not tool_use_blocks:
+            return " ".join(text_blocks), accumulated_thinking  # final answer
+
+        tool_results = []
+        for block in tool_use_blocks:
+            result_str = sandbox.run(block.input.get("code", ""), csv_path)
+            tool_results.append({"type": "tool_result", "tool_use_id": block.id, "content": result_str})
+
+        messages.append({"role": "user", "content": tool_results})
+
+    return "", accumulated_thinking  # max iterations reached
+
+
 # ---------------------------------------------------------------------------
 # Provider registry  (mirrors INJECT_FN / COMPUTE_FN pattern)
 # ---------------------------------------------------------------------------
@@ -188,6 +392,12 @@ QUERY_FN: dict[str, Callable] = {
     "ollama": query_ollama,
     "anthropic": query_anthropic,
     "openai": query_openai,
+}
+
+QUERY_FN_TOOLS: dict[str, Callable] = {
+    "anthropic": query_anthropic_tools,
+    "openai": query_openai_style_tools,
+    "ollama_tools": query_ollama_tools,
 }
 
 
@@ -224,8 +434,12 @@ def run_eval(
     output_path: Path,
     dataset: str | None = None,
     injector: str | None = None,
+    tools: bool = False,
+    columns_only: bool = False,
 ) -> list[dict]:
     manifests = discover_instances(instances_dir, dataset=dataset, injector=injector)
+    if columns_only and dataset is None:
+        manifests = [m for m in manifests if m.parts[-4].endswith("_100")]
     if not manifests:
         print(f"No manifests found under {instances_dir}")
         sys.exit(1)
@@ -238,6 +452,30 @@ def run_eval(
         except ValueError as exc:
             print(f"ERROR: {exc}")
             sys.exit(1)
+
+    # Determine effective provider per model (handles Ollama tool-support check)
+    effective_providers: dict[str, str | None] = {}
+    for model in models:
+        provider = model_providers[model]
+        if tools and provider == "ollama":
+            if check_ollama_tool_support(model):
+                effective_providers[model] = "ollama_tools"
+                print(f"[tools] {model}: tool support confirmed")
+            else:
+                effective_providers[model] = None  # will be skipped
+                print(f"[tools] {model}: no tool support — skipping")
+        else:
+            effective_providers[model] = provider
+
+    # Sandbox (lazy, only when tools=True)
+    from sandbox import PythonSandbox
+    sandbox = None
+    if tools:
+        sandbox = PythonSandbox()
+        if sandbox.ping():
+            print(f"[sandbox] ready ({sandbox._python})")
+        else:
+            print(f"[sandbox] WARNING: could not launch Python at {sandbox._python}")
 
     # Lazy client initialization — only for providers actually needed
     from dotenv import load_dotenv
@@ -261,13 +499,22 @@ def run_eval(
             sys.exit(1)
         clients["openai"] = _openai.OpenAI(api_key=api_key)
 
+    if tools and any(v == "ollama_tools" for v in effective_providers.values()):
+        clients["ollama_tools"] = None  # uses requests directly via native /api/chat
+
     results: list[dict] = []
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     for manifest_path in manifests:
         manifest = load_json(manifest_path)
         instance_dir = manifest_path.parent
-        csv_text = (instance_dir / "table.csv").read_text()
+        if columns_only:
+            import pandas as pd
+            cols = pd.read_csv(instance_dir / "table.csv", nrows=0).columns.tolist()
+            csv_text = "Columns: " + ", ".join(cols)
+        else:
+            csv_text = (instance_dir / "table.csv").read_text()
+
 
         dataset = manifest["dataset_name"]
         injector = manifest["phenomenon"]["injector_type"]
@@ -282,15 +529,21 @@ def run_eval(
             answer_format = qa["answer_format"]
 
             for model in models:
+                eff = effective_providers[model]
+                if tools and eff is None:
+                    continue  # model doesn't support tools, skip
+
                 print(f"[{model}] {dataset}/{injector} → ", end="", flush=True)
 
-                provider = model_providers[model]
-                query_fn = QUERY_FN[provider]
-                client = clients[provider]
+                query_fn = QUERY_FN_TOOLS[eff] if tools else QUERY_FN[model_providers[model]]
+                client = clients[eff if tools else model_providers[model]]
 
                 thinking: str | None = None
                 try:
-                    model_answer, thinking = query_fn(client, model, csv_text, question)
+                    if tools:
+                        model_answer, thinking = query_fn(client, model, csv_text, question, sandbox, instance_dir / "table.csv")
+                    else:
+                        model_answer, thinking = query_fn(client, model, csv_text, question)
                 except Exception as exc:
                     model_answer = f"ERROR: {exc}"
 
@@ -306,6 +559,8 @@ def run_eval(
                     "model_answer": model_answer,
                     "answer_format": answer_format,
                 }
+                if tools:
+                    result["tools_enabled"] = True
                 if thinking:
                     result["thinking"] = thinking
                 results.append(result)
@@ -390,16 +645,37 @@ def main() -> None:
         default=None,
         help="Filter instances by injector name substring (e.g. 'name_swap')",
     )
+    parser.add_argument(
+        "--tools",
+        action="store_true",
+        default=False,
+        help="Enable Python code execution tool. Ollama models without tool support are skipped.",
+    )
+    parser.add_argument(
+        "--columns-only",
+        action="store_true",
+        default=False,
+        help="Replace the full CSV with just column names in the prompt (blind test).",
+    )
     args = parser.parse_args()
 
     if args.output is None:
         if len(args.models) == 1:
             safe = args.models[0].replace(":", "_").replace("/", "_")
-            args.output = Path(f"data/results/eval_results_{safe}.json")
+            base = Path(f"data/results/eval_results_{safe}.json")
         else:
-            args.output = DEFAULT_OUTPUT
+            base = DEFAULT_OUTPUT
+        if args.tools:
+            base = base.with_stem(base.stem + "_tools")
+        if args.columns_only:
+            base = base.with_stem(base.stem + "_columns_only")
+        args.output = base
 
-    results = run_eval(args.models, args.instances_dir, args.output, dataset=args.dataset, injector=args.injector)
+    results = run_eval(
+        args.models, args.instances_dir, args.output,
+        dataset=args.dataset, injector=args.injector, tools=args.tools,
+        columns_only=args.columns_only,
+    )
     print_summary(results)
 
 
