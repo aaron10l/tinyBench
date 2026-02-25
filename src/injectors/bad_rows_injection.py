@@ -39,8 +39,17 @@ def inject(
     n_bad = max(1, int(n * bad_fraction))
     bad_indices = rng.choice(n, size=n_bad, replace=False)
 
-    # Create the indicator column (looks like a sensor/ETL flag)
-    indicator_col = "_check_flag"
+    # Pick from a list of neutral, domain-agnostic names that look like ordinary
+    # categorical features — no quality/filter connotation.
+    _CANDIDATE_NAMES = [
+        "region", "channel", "segment", "cohort", "tier",
+        "variant", "cluster", "period", "quarter", "sample",
+        "trial", "run", "split", "bucket", "partition",
+        "group", "class", "phase", "batch", "slot",
+    ]
+    existing = set(df.columns)
+    candidates = [n for n in _CANDIDATE_NAMES if n not in existing]
+    indicator_col = candidates[rng.integers(0, len(candidates))] + "_flag"
     insert_pos = rng.integers(0, max(1, len(df.columns)))
     if insert_pos == len(df.columns):
         insert_pos = max(0, len(df.columns) - 1)
