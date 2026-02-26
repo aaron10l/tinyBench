@@ -150,7 +150,7 @@ def query_ollama(
             {"role": "user", "content": user_content},
         ],
     }
-    resp = requests.post(OLLAMA_URL, json=payload, timeout=120)
+    resp = requests.post(OLLAMA_URL, json=payload, timeout=600)
     resp.raise_for_status()
     data = resp.json()
     message = data.get("message", {})
@@ -262,7 +262,7 @@ def query_ollama_tools(
             "messages": messages,
             "tools": [TOOL_RUN_PYTHON],
         }
-        resp = requests.post(OLLAMA_URL, json=payload, timeout=120)
+        resp = requests.post(OLLAMA_URL, json=payload, timeout=600)
         resp.raise_for_status()
         message = resp.json().get("message", {})
 
