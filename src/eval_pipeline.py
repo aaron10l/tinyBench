@@ -246,13 +246,14 @@ def query_ollama_tools(
     question: str,
     sandbox: "PythonSandbox",
     csv_path: Path,
-) -> tuple[str, str | None]:
+) -> tuple[str, str | None, list[str]]:
     """Tool-calling query via Ollama native /api/chat endpoint."""
     messages: list[dict] = [
         {"role": "system", "content": SYSTEM_PROMPT_TOOLS},
         {"role": "user", "content": f"## Dataset\n{csv_text}\n\n## Question\n{question}"},
     ]
     thinking: str | None = None
+    collected_code: list[str] = []
 
     for i in range(MAX_TOOL_ITER):
         payload = {
@@ -271,7 +272,7 @@ def query_ollama_tools(
         tool_calls = message.get("tool_calls") or []
 
         if not tool_calls:
-            return message.get("content", ""), thinking
+            return message.get("content", ""), thinking, collected_code
 
         messages.append({
             "role": "assistant",
@@ -287,12 +288,13 @@ def query_ollama_tools(
                 except json.JSONDecodeError:
                     args = {}
             code = args.get("code", "")
+            collected_code.append(code)
             print(f"\n[sandbox] running code:\n{code}")
             result_str = sandbox.run(code, csv_path)
             print(f"[sandbox] result: {result_str!r}")
             messages.append({"role": "tool", "content": result_str})
 
-    return "", thinking
+    return "", thinking, collected_code
 
 
 def query_openai_style_tools(
@@ -302,12 +304,13 @@ def query_openai_style_tools(
     question: str,
     sandbox: "PythonSandbox",
     csv_path: Path,
-) -> tuple[str, str | None]:
+) -> tuple[str, str | None, list[str]]:
     """Tool-calling query via OpenAI-compatible API (works for both OpenAI and Ollama)."""
     messages: list[dict] = [
         {"role": "system", "content": SYSTEM_PROMPT_TOOLS},
         {"role": "user", "content": f"## Dataset\n{csv_text}\n\n## Question\n{question}"},
     ]
+    collected_code: list[str] = []
     for _ in range(MAX_TOOL_ITER):
         resp = client.chat.completions.create(
             model=model, max_tokens=2048, messages=messages,
@@ -317,7 +320,7 @@ def query_openai_style_tools(
         messages.append(msg.model_dump(exclude_unset=True))
 
         if not msg.tool_calls:
-            return msg.content or "", None  # final answer
+            return msg.content or "", None, collected_code  # final answer
 
         for tc in msg.tool_calls:
             try:
@@ -325,12 +328,13 @@ def query_openai_style_tools(
             except json.JSONDecodeError:
                 args = {}
             code = args.get("code", "")
+            collected_code.append(code)
             print(f"\n[sandbox] running code:\n{code}")
             result_str = sandbox.run(code, csv_path)
             print(f"[sandbox] result: {result_str!r}")
             messages.append({"role": "tool", "tool_call_id": tc.id, "content": result_str})
 
-    return "", None  # max iterations reached
+    return "", None, collected_code  # max iterations reached
 
 
 def query_anthropic_tools(
@@ -340,7 +344,7 @@ def query_anthropic_tools(
     question: str,
     sandbox: "PythonSandbox",
     csv_path: Path,
-) -> tuple[str, str | None]:
+) -> tuple[str, str | None, list[str]]:
     """Tool-calling query via Anthropic API."""
     use_thinking = model in THINKING_MODELS
     kwargs: dict = dict(
@@ -355,6 +359,7 @@ def query_anthropic_tools(
         {"role": "user", "content": f"## Dataset\n{csv_text}\n\n## Question\n{question}"},
     ]
     accumulated_thinking: str | None = None
+    collected_code: list[str] = []
 
     for _ in range(MAX_TOOL_ITER):
         kwargs["messages"] = messages
@@ -372,16 +377,18 @@ def query_anthropic_tools(
         messages.append({"role": "assistant", "content": msg.content})
 
         if not tool_use_blocks:
-            return " ".join(text_blocks), accumulated_thinking  # final answer
+            return " ".join(text_blocks), accumulated_thinking, collected_code  # final answer
 
         tool_results = []
         for block in tool_use_blocks:
-            result_str = sandbox.run(block.input.get("code", ""), csv_path)
+            code = block.input.get("code", "")
+            collected_code.append(code)
+            result_str = sandbox.run(code, csv_path)
             tool_results.append({"type": "tool_result", "tool_use_id": block.id, "content": result_str})
 
         messages.append({"role": "user", "content": tool_results})
 
-    return "", accumulated_thinking  # max iterations reached
+    return "", accumulated_thinking, collected_code  # max iterations reached
 
 
 # ---------------------------------------------------------------------------
@@ -539,9 +546,10 @@ def run_eval(
                 client = clients[eff if tools else model_providers[model]]
 
                 thinking: str | None = None
+                code_list: list[str] = []
                 try:
                     if tools:
-                        model_answer, thinking = query_fn(client, model, csv_text, question, sandbox, instance_dir / "table.csv")
+                        model_answer, thinking, code_list = query_fn(client, model, csv_text, question, sandbox, instance_dir / "table.csv")
                     else:
                         model_answer, thinking = query_fn(client, model, csv_text, question)
                 except Exception as exc:
@@ -561,6 +569,7 @@ def run_eval(
                 }
                 if tools:
                     result["tools_enabled"] = True
+                    result["code"] = code_list
                 if thinking:
                     result["thinking"] = thinking
                 results.append(result)
