@@ -15,7 +15,7 @@ Make group means similar but variances different:
 **Which group is riskier?**
 
 - Phenomenon: Heteroskedastic noise with identical means but different variances  
-- Corresponding injector script: `src/injectors/heteroskedastic_injection.py`
+- Corresponding injector script: `src/injectors/anomaly_riskier_group.py`
 
 
 ## 2) Find the strongest data quality filter - DONE
@@ -31,7 +31,7 @@ Inject a single feature that implicitly identifies rows with corrupted or nonsen
 You can apply exactly one rule based on a single column to exclude problematic rows before modeling outcome. Which column should the rule be based on? Return a single column name.
 
 - Phenomenon: A hidden “bad rows” indicator column correlates with corrupted labels.  
-- Corresponding injector script: `src/injectors/bad_rows_injection.py`
+- Corresponding injector script: `src/injectors/anomaly_data_quality_filter.py`
 
 
 ## 3) Identify important features for the outcome (robust to misleading names) - DONE
@@ -49,7 +49,7 @@ One (or both) of:
 **Which features are important to understand the outcome?**
 
 - Phenomenon: Data leakage on “likely” feature names; swap column names  
-- Corresponding injector script: `src/injectors/name_swap_injection.py`
+- Corresponding injector script: `src/injectors/fi_leakage_topk.py`
 
 
 ## 4) Did performance improve? - WIP
@@ -67,7 +67,7 @@ Create a composition shift: change group sampling rates (or mixture weights) acr
 **Did performance improve from last quarter to this quarter?**
 
 - Phenomenon: Change sampling rate across quarters → Simpson’s paradox  
-- Corresponding injector script: `src/injectors/simpsons_paradox_injection.py`
+- Corresponding injector script: `src/injectors/rca_performance_improve.py`
 
 
 ## 5) Detect when to retrain
@@ -86,4 +86,4 @@ Introduce a change-point in the data-generating relationship while keeping margi
 Column X is the output of my predictive model. Should we retrain it? If yes, at what row should we retrain it?
 
 - Phenomenon: Introduce interaction effect halfway through, keep average of X unchanged  
-- Corresponding injector script: `src/injectors/changepoint_injection.py`
+- Corresponding injector script: `src/injectors/rca_retrain_point.py`

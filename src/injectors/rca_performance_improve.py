@@ -133,7 +133,7 @@ def inject(
     }
 
     return df, {
-        "type": "simpsons_paradox_injection",
+        "type": "rca_performance_improve",
         "params": params,
         "effects": effects,
     }

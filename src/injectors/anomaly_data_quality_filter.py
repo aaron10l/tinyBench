@@ -71,7 +71,7 @@ def inject(
         new_values = np.rint(new_values).astype(float)
     df.iloc[bad_indices, df.columns.get_loc(outcome_col)] = new_values
 
-    # print(f"[bad_rows_injection] Modified rows: {n_bad}")
+    # print(f"[anomaly_data_quality_filter] Modified rows: {n_bad}")
 
     effects = {
         "indicator_col": indicator_col,
@@ -81,7 +81,7 @@ def inject(
     }
 
     return df, {
-        "type": "bad_rows_injection",
+        "type": "anomaly_data_quality_filter",
         "params": params,
         "effects": effects,
     }

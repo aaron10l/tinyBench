@@ -4,6 +4,6 @@ import pandas as pd
 
 
 def compute_answer(df: pd.DataFrame, slot_assignments: dict, effects: dict) -> Any:
-    inj = effects["changepoint_injection"]
+    inj = effects["rca_retrain_point"]
     change_row_id = inj["change_row_id"]
     return f"YES, {change_row_id}"

@@ -1,6 +1,6 @@
 """Bad-rows indicator injector v1.
 
-Same as bad_rows_injection, but renames every column except the outcome column
+Same as anomaly_data_quality_filter, but renames every column except the outcome column
 to a random 5-letter string after injection. Column names give no semantic
 signal — the model must reason purely from the data values.
 """
@@ -96,7 +96,7 @@ def inject(
     }
 
     return df, {
-        "type": "bad_rows_injection_v1",
+        "type": "anomaly_data_quality_filter_v1",
         "params": params,
         "effects": effects,
     }

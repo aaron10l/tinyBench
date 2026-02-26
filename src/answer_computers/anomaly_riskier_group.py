@@ -10,7 +10,7 @@ Then, it returns the group with the higher variance, assuming it matches the exp
 """
 
 def compute_answer(df: pd.DataFrame, slot_assignments: dict, effects: dict) -> Any:
-    inj = effects["heteroskedastic_injection"]
+    inj = effects["anomaly_riskier_group"]
 
     group_col = slot_assignments["GROUP_COL"]
     metric_col = slot_assignments["RISK_METRIC_COL"]

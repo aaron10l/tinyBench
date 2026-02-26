@@ -91,7 +91,7 @@ def inject(
     }
 
     return df, {
-        "type": "heteroskedastic_injection",
+        "type": "anomaly_riskier_group",
         "params": params,
         "effects": effects,
     }

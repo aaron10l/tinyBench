@@ -34,7 +34,7 @@
 
   "phenomena": [
     {
-      "injector": "changepoint_injection",
+      "injector": "rca_retrain_point",
       "param_mapping": {
         "pred_col": "{OUTCOME_COL}",
         "order_col": "{ORDER_COL}",

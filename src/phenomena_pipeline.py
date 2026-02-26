@@ -273,7 +273,7 @@ def build_instance(
         injector_type = spec["type"]
         params = spec["params"]
 
-        if injector_type == "name_swap_injection" and id_no_cols:
+        if injector_type == "fi_leakage_topk" and id_no_cols:
             params = {**params, "id_no_cols": id_no_cols}
 
         # Start from fresh copy of original data

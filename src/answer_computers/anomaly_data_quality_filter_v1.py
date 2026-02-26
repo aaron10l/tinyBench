@@ -4,5 +4,5 @@ import pandas as pd
 
 
 def compute_answer(df: pd.DataFrame, slot_assignments: dict, effects: dict) -> Any:
-    inj = effects["bad_rows_injection_v1"]
+    inj = effects["anomaly_data_quality_filter_v1"]
     return inj["indicator_col"]

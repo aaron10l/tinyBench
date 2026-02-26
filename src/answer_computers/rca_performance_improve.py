@@ -4,7 +4,7 @@ import pandas as pd
 
 
 def compute_answer(df: pd.DataFrame, slot_assignments: dict, effects: dict) -> Any:
-    effects["simpsons_paradox_injection"]  # assert key exists
+    effects["rca_performance_improve"]  # assert key exists
 
     outcome_col = slot_assignments["OUTCOME_COL"]
     time_col = slot_assignments["TIME_COL"]

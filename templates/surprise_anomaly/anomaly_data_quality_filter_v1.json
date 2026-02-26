@@ -22,7 +22,7 @@
 
   "phenomena": [
     {
-      "injector": "bad_rows_injection_v1",
+      "injector": "anomaly_data_quality_filter_v1",
       "param_mapping": {
         "outcome_col": "{OUTCOME_COL}"
       }

@@ -50,11 +50,11 @@ Injectors and answer computers are dispatched via dicts in their respective `__i
 
 | Phenomenon | Injector | Answer Computer (template_id) | Category |
 |---|---|---|---|
-| Heteroskedastic groups | `heteroskedastic_injection` | `anomaly_riskier_group_v0` | surprise_anomaly |
-| Bad row indicators | `bad_rows_injection` | `anomaly_data_quality_filter_v0` | surprise_anomaly |
-| Misleading column names | `name_swap_injection` | `fi_leakage_topk_v0` | feature_importance |
-| Simpson's paradox | `simpsons_paradox_injection` | `rca_performance_improve_v0` | root_cause |
-| Change-point shift | `changepoint_injection` | `rca_retrain_point_v0` | root_cause |
+| Heteroskedastic groups | `anomaly_riskier_group` | `anomaly_riskier_group_v0` | surprise_anomaly |
+| Bad row indicators | `anomaly_data_quality_filter` | `anomaly_data_quality_filter_v0` | surprise_anomaly |
+| Misleading column names | `fi_leakage_topk` | `fi_leakage_topk_v0` | feature_importance |
+| Simpson's paradox | `rca_performance_improve` | `rca_performance_improve_v0` | root_cause |
+| Change-point shift | `rca_retrain_point` | `rca_retrain_point_v0` | root_cause |
 
 ### Injector interface
 
@@ -69,7 +69,7 @@ Injectors must copy the dataframe, validate that the injection succeeded (e.g., 
 
 ```python
 def compute_answer(df: pd.DataFrame, slot_assignments: dict, effects: dict) -> Any:
-    # effects is keyed by injector type: {"heteroskedastic_injection": {...}}
+    # effects is keyed by injector type: {"anomaly_riskier_group": {...}}
 ```
 
 Answer computers verify effects before computing. Raise on verification failure.
