@@ -250,9 +250,10 @@ def main() -> None:
         for k in by_kind:
             by_kind[k] = sorted(by_kind[k])
 
+        last_col = list(cols.keys())[-1]
         payload = {
             "dataset": csv_path.name,
-            "target": "",
+            "target": last_col,
             "columns": columns_out,
             "by_kind": by_kind,
         }
