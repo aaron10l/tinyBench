@@ -73,6 +73,7 @@ def inject(
     effects = {
         "original_to_new": rename_map,
         "new_to_original": reverse_map,
+        "id_no_cols": list(params.get("id_no_cols", [])),
     }
 
     return df, {

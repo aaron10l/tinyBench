@@ -14,7 +14,8 @@ def compute_answer(df: pd.DataFrame, slot_assignments: dict, effects: dict) -> A
     k = int(slot_assignments.get("K", 5))
     target = pd.to_numeric(df[outcome_col], errors="coerce")
 
-    feature_cols = [c for c in df.columns if c != outcome_col]
+    id_no_cols = set(effects.get("fi_leakage_topk", {}).get("id_no_cols", []))
+    feature_cols = [c for c in df.columns if c != outcome_col and c not in id_no_cols]
     correlations = {}
     for col in feature_cols:
         numeric = pd.to_numeric(df[col], errors="coerce")
