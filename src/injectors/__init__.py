@@ -1,13 +1,15 @@
-from .name_swap_injection import inject as inject_name_swap
-from .heteroskedastic_injection import inject as inject_heteroskedastic
-from .bad_rows_injection import inject as inject_bad_rows
-from .simpsons_paradox_injection import inject as inject_simpsons_paradox
-from .changepoint_injection import inject as inject_changepoint
+from .fi_leakage_topk import inject as inject_fi_leakage_topk
+from .anomaly_riskier_group import inject as inject_anomaly_riskier_group
+from .anomaly_data_quality_filter import inject as inject_anomaly_data_quality_filter
+from .anomaly_data_quality_filter_v1 import inject as inject_anomaly_data_quality_filter_v1
+from .rca_performance_improve import inject as inject_rca_performance_improve
+from .rca_retrain_point import inject as inject_rca_retrain_point
 
 INJECT_FN = {
-    "name_swap_injection": inject_name_swap,
-    "heteroskedastic_injection": inject_heteroskedastic,
-    "bad_rows_injection": inject_bad_rows,
-    "simpsons_paradox_injection": inject_simpsons_paradox,
-    "changepoint_injection": inject_changepoint,
+    "fi_leakage_topk": inject_fi_leakage_topk,
+    "anomaly_riskier_group": inject_anomaly_riskier_group,
+    "anomaly_data_quality_filter": inject_anomaly_data_quality_filter,
+    "anomaly_data_quality_filter_v1": inject_anomaly_data_quality_filter_v1,
+    "rca_performance_improve": inject_rca_performance_improve,
+    "rca_retrain_point": inject_rca_retrain_point,
 }

@@ -38,7 +38,7 @@
 
   "phenomena": [
     {
-      "injector": "heteroskedastic_injection",
+      "injector": "anomaly_riskier_group",
       "param_mapping": {
         "group_col": "{GROUP_COL}",
         "metric_col": "{RISK_METRIC_COL}",

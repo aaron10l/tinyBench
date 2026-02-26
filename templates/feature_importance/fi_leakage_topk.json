@@ -2,7 +2,7 @@
   "template_id": "fi_leakage_topk_v0",
   "category": "Feature Attribution / Importance",
   "answer_format": "feature_ranked_list",
-  "question": "Which columns matter most for understanding or predicting {OUTCOME_COL}? Return up to {K} feature names, ranked from most to least important, with a brief justification grounded in patterns in the table.",
+  "question": "Which columns have the highest absolute Pearson correlation with {OUTCOME_COL}? Return up to {K} feature names, ranked from highest to lowest correlation, as a comma-separated list (e.g. col_a, col_b, col_c).",
 
   "slots": {
     "OUTCOME_COL": {
@@ -25,7 +25,7 @@
 
   "phenomena": [
     {
-      "injector": "name_swap_injection",
+      "injector": "fi_leakage_topk",
       "param_mapping": {
         "target_col": "{OUTCOME_COL}"
       }

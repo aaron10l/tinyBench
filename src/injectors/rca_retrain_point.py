@@ -57,7 +57,7 @@ def inject(
 
     if len(numeric_cols) < 2:
         return df, {
-            "type": "changepoint_injection",
+            "type": "rca_retrain_point",
             "params": params,
             "effects": {"change_row_id": None},
         }
@@ -101,7 +101,7 @@ def inject(
     }
 
     return df, {
-        "type": "changepoint_injection",
+        "type": "rca_retrain_point",
         "params": params,
         "effects": effects,
     }

@@ -273,7 +273,7 @@ def build_instance(
         injector_type = spec["type"]
         params = spec["params"]
 
-        if injector_type == "name_swap_injection" and id_no_cols:
+        if injector_type == "fi_leakage_topk" and id_no_cols:
             params = {**params, "id_no_cols": id_no_cols}
 
         # Start from fresh copy of original data
@@ -306,14 +306,22 @@ def build_instance(
         # Get templates that use this specific phenomenon
         relevant_matches = _get_templates_for_phenomenon(matches, injector_type)
 
+        # Strip id_no columns for fi_leakage_topk: the question asks about
+        # feature correlations, and id_no columns are not features.
+        df_to_save = df_injected
+        if injector_type == "fi_leakage_topk" and id_no_cols:
+            drop = [c for c in id_no_cols if c in df_injected.columns]
+            if drop:
+                df_to_save = df_injected.drop(columns=drop)
+
         # Generate QA pairs only for relevant templates
-        qa_pairs = generate_qa_pairs(relevant_matches, df_injected, [phenom_result])
+        qa_pairs = generate_qa_pairs(relevant_matches, df_to_save, [phenom_result])
 
         # Save outputs to phenomenon-specific directory
         out_dir = dataset_dir.parent / "instances" / dataset_name / f"seed_{seed}" / injector_type
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        save_csv(df_injected, out_dir / "table.csv")
+        save_csv(df_to_save, out_dir / "table.csv")
 
         manifest = {
             "dataset_name": dataset_name,

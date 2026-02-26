@@ -41,7 +41,7 @@
 
   "phenomena": [
     {
-      "injector": "simpsons_paradox_injection",
+      "injector": "rca_performance_improve",
       "param_mapping": {
         "outcome_col": "{OUTCOME_COL}",
         "time_col": "{TIME_COL}",

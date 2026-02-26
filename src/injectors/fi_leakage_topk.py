@@ -55,7 +55,7 @@ def inject(
     if len(columns_to_swap) < 2:
         # Nothing meaningful to swap — return unmodified
         return df, {
-            "type": "name_swap_injection",
+            "type": "fi_leakage_topk",
             "params": params,
             "effects": {"original_to_new": {}, "new_to_original": {}},
         }
@@ -73,10 +73,11 @@ def inject(
     effects = {
         "original_to_new": rename_map,
         "new_to_original": reverse_map,
+        "id_no_cols": list(params.get("id_no_cols", [])),
     }
 
     return df, {
-        "type": "name_swap_injection",
+        "type": "fi_leakage_topk",
         "params": params,
         "effects": effects,
     }
