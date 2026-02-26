@@ -1,3 +1,4 @@
+import argparse
 import csv
 import random
 from pathlib import Path
@@ -55,13 +56,25 @@ def _write_rows(path: Path, rows: List[Dict[str, str]], fieldnames: List[str]) -
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="Standardize base CSVs into multiple row-count variants")
+    parser.add_argument(
+        "--sizes",
+        type=int,
+        nargs="+",
+        default=[100, 500, 1000],
+        metavar="N",
+        help="Row counts to generate (default: 100 500 1000)",
+    )
+    args = parser.parse_args()
+    sizes = sorted(args.sizes)
+
     base_dir = Path(__file__).parent
     standardized_dir = base_dir.parent / "standardized"
     standardized_dir.mkdir(parents=True, exist_ok=True)
-    limit = 1000
 
-    for csv_path in base_dir.glob("*.csv"):
-        rows, fieldnames = _read_rows(csv_path, limit=limit)
+    for csv_path in sorted(base_dir.glob("*.csv")):
+        print(f"{csv_path.name}")
+        rows, fieldnames = _read_rows(csv_path, limit=max(sizes))
         if not fieldnames:
             continue
 
@@ -75,17 +88,23 @@ def main() -> None:
         else:
             out_fields = fieldnames
 
-        out_rows = []
+        all_out_rows = []
         for row_idx, row in enumerate(rows, start=1):
             row = dict(row)
             if id_col and id_col != "row_id":
                 row["row_id"] = row.pop(id_col, "")
             if add_row_id:
                 row["row_id"] = str(row_idx)
-            out_rows.append(row)
+            all_out_rows.append(row)
 
-        out_name = f"{csv_path.stem}_{len(out_rows)}{csv_path.suffix}"
-        _write_rows(standardized_dir / out_name, out_rows, out_fields)
+        for size in sizes:
+            out_rows = all_out_rows[:size]
+            if len(out_rows) < size:
+                print(f"  Warning: {csv_path.name} has only {len(out_rows)} rows, skipping {size}-row version")
+                continue
+            out_name = f"{csv_path.stem}_{size}{csv_path.suffix}"
+            _write_rows(standardized_dir / out_name, out_rows, out_fields)
+            print(f"  Wrote {out_name}")
 
 
 if __name__ == "__main__":
