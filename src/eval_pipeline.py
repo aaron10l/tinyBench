@@ -469,8 +469,8 @@ def run_eval(
                 effective_providers[model] = "ollama_tools"
                 print(f"[tools] {model}: tool support confirmed")
             else:
-                effective_providers[model] = None  # will be skipped
-                print(f"[tools] {model}: no tool support — skipping")
+                effective_providers[model] = "ollama"  # fall back to plain mode
+                print(f"[tools] {model}: no tool support — running without tools")
         else:
             effective_providers[model] = provider
 
@@ -537,18 +537,17 @@ def run_eval(
 
             for model in models:
                 eff = effective_providers[model]
-                if tools and eff is None:
-                    continue  # model doesn't support tools, skip
+                use_tools = tools and eff in QUERY_FN_TOOLS
 
                 print(f"[{model}] {dataset}/{injector} → ", end="", flush=True)
 
-                query_fn = QUERY_FN_TOOLS[eff] if tools else QUERY_FN[model_providers[model]]
-                client = clients[eff if tools else model_providers[model]]
+                query_fn = QUERY_FN_TOOLS[eff] if use_tools else QUERY_FN[model_providers[model]]
+                client = clients[eff if use_tools else model_providers[model]]
 
                 thinking: str | None = None
                 code_list: list[str] = []
                 try:
-                    if tools:
+                    if use_tools:
                         model_answer, thinking, code_list = query_fn(client, model, csv_text, question, sandbox, instance_dir / "table.csv")
                     else:
                         model_answer, thinking = query_fn(client, model, csv_text, question)
@@ -568,7 +567,7 @@ def run_eval(
                     "answer_format": answer_format,
                 }
                 if tools:
-                    result["tools_enabled"] = True
+                    result["tools_enabled"] = use_tools
                     result["code"] = code_list
                 if thinking:
                     result["thinking"] = thinking
