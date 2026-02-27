@@ -1,0 +1,3 @@
+[submodule "vendor/intelligible-ai"]
+	path = vendor/intelligible-ai
+	url = https://github.com/Intelligible/intelligible-ai.git
