@@ -90,6 +90,19 @@ def inject(
     # Add small noise
     raw = raw + rng.normal(0, pre_std * 0.2, post_n)
 
+    # Round injected values to the same decimal precision as pre-change values
+    # so the injected rows don't stand out visually (e.g. 10 decimal places vs 2).
+    pre_vals = df.loc[pre_change_mask, pred_col].dropna()
+    dp_counts = []
+    for v in pre_vals:
+        s = str(float(v))
+        if "." in s:
+            dp_counts.append(len(s.split(".")[1]))
+        else:
+            dp_counts.append(0)
+    decimal_places = int(np.median(dp_counts)) if dp_counts else 2
+    raw = np.round(raw, decimal_places)
+
     df.loc[post_change_mask, pred_col] = raw
 
     effects = {
