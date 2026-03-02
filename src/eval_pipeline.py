@@ -1,16 +1,13 @@
-"""Unified QA evaluation pipeline — supports Ollama, Anthropic, and OpenAI models."""
+"""Unified QA evaluation pipeline — supports Anthropic and OpenAI models."""
 from __future__ import annotations
 
 import argparse
 import json
 import os
-import subprocess
 import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import Callable
-
-import requests
 
 from io_utils import load_json
 
@@ -19,24 +16,19 @@ from io_utils import load_json
 # ---------------------------------------------------------------------------
 
 DEFAULT_MODELS = [
-    # Ollama
-    "deepseek-r1:8b",
-    "qwen2.5:7b",
-    "llama3.2:3b",
-    "phi4:latest",
     # Anthropic
     "claude-opus-4-6",
-    "claude-sonnet-4-5-20250929",
+    "claude-sonnet-4-6",
+    "claude-haiku-4-5-20251001",
     # OpenAI
     "gpt-4o",
     "gpt-4o-mini",
+    "o4-mini",
 ]
 DEFAULT_INSTANCES_DIR = Path("data/instances")
 DEFAULT_OUTPUT = Path("data/results/eval_results.json")
 
-OLLAMA_URL = "http://localhost:11434/api/chat"
-
-THINKING_MODELS = {"claude-opus-4-6"}
+THINKING_MODELS = {"claude-opus-4-6", "claude-sonnet-4-6"}
 
 SYSTEM_PROMPT = (
     "You are a data analyst. You are given a CSV dataset and a question about it.\n"
@@ -65,7 +57,6 @@ ANSWER_SCHEMA = {
     "additionalProperties": False,
 }
 
-OLLAMA_V1_BASE_URL = "http://localhost:11434/v1"
 MAX_TOOL_ITER = 10
 
 SYSTEM_PROMPT_TOOLS = (
@@ -113,40 +104,15 @@ ANTHROPIC_TOOL_RUN_PYTHON = {
 
 def detect_provider(model: str) -> str:
     """Infer the provider from the model name."""
-    if ":" in model:
-        return "ollama"
     if model.startswith("claude"):
         return "anthropic"
     if model.startswith(("gpt-", "o1", "o3", "o4")):
         return "openai"
     raise ValueError(
         f"Cannot infer provider for model '{model}'. "
-        "Ollama models contain ':', Anthropic models start with 'claude', "
+        "Anthropic models start with 'claude'; "
         "OpenAI models start with 'gpt-', 'o1', 'o3', or 'o4'."
     )
-
-
-# ---------------------------------------------------------------------------
-# Tool-support detection
-# ---------------------------------------------------------------------------
-
-_ollama_tool_cache: dict[str, bool] = {}
-
-
-def check_ollama_tool_support(model: str) -> bool:
-    """Return True if the model's Ollama template supports tool calling."""
-    if model in _ollama_tool_cache:
-        return _ollama_tool_cache[model]
-    try:
-        r = subprocess.run(
-            ["ollama", "show", model, "--modelfile"],
-            capture_output=True, text=True, timeout=15,
-        )
-        supported = r.returncode == 0 and ".ToolCalls" in r.stdout
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        supported = False
-    _ollama_tool_cache[model] = supported
-    return supported
 
 
 # ---------------------------------------------------------------------------
@@ -162,43 +128,6 @@ def _build_user_content(csv_text: str, question: str, semantic_context: str = ""
         parts.append(semantic_context)
     parts.append(f"## Question\n{question}")
     return "\n\n".join(parts)
-
-
-def query_ollama(
-    _client: None,
-    model: str,
-    csv_text: str,
-    question: str,
-    semantic_context: str = "",
-) -> tuple[str, str | None]:
-    """Query an Ollama model via /api/chat with structured JSON output."""
-    system = SYSTEM_PROMPT_SEMANTIC if semantic_context else SYSTEM_PROMPT
-    user_content = _build_user_content(csv_text, question, semantic_context)
-    payload = {
-        "model": model,
-        "stream": False,
-        "format": ANSWER_SCHEMA,
-        "options": {"num_predict": 512},
-        "messages": [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user_content},
-        ],
-    }
-    resp = requests.post(OLLAMA_URL, json=payload, timeout=3600)
-    resp.raise_for_status()
-    data = resp.json()
-    message = data.get("message", {})
-
-    # Ollama 0.7+ separates thinking into message.thinking
-    thinking: str | None = message.get("thinking") or None
-
-    raw_content = message.get("content", "")
-    try:
-        answer = json.loads(raw_content)["answer"]
-    except (json.JSONDecodeError, KeyError):
-        answer = raw_content.strip()
-
-    return answer, thinking
 
 
 def query_anthropic(
@@ -277,68 +206,8 @@ def query_openai(
     return answer, None
 
 
-def query_ollama_tools(
-    _client: None,
-    model: str,
-    csv_text: str,
-    question: str,
-    sandbox: "PythonSandbox",
-    csv_path: Path,
-    semantic_context: str = "",
-) -> tuple[str, str | None, list[str]]:
-    """Tool-calling query via Ollama native /api/chat endpoint."""
-    system = SYSTEM_PROMPT_SEMANTIC_TOOLS if semantic_context else SYSTEM_PROMPT_TOOLS
-    messages: list[dict] = [
-        {"role": "system", "content": system},
-        {"role": "user", "content": _build_user_content(csv_text, question, semantic_context)},
-    ]
-    thinking: str | None = None
-    collected_code: list[str] = []
-
-    for i in range(MAX_TOOL_ITER):
-        payload = {
-            "model": model,
-            "stream": False,
-            "messages": messages,
-            "tools": [TOOL_RUN_PYTHON],
-        }
-        resp = requests.post(OLLAMA_URL, json=payload, timeout=3600)
-        resp.raise_for_status()
-        message = resp.json().get("message", {})
-
-        if message.get("thinking"):
-            thinking = message["thinking"]
-
-        tool_calls = message.get("tool_calls") or []
-
-        if not tool_calls:
-            return message.get("content", ""), thinking, collected_code
-
-        messages.append({
-            "role": "assistant",
-            "content": message.get("content", ""),
-            "tool_calls": tool_calls,
-        })
-
-        for tc in tool_calls:
-            args = tc.get("function", {}).get("arguments", {})
-            if isinstance(args, str):
-                try:
-                    args = json.loads(args)
-                except json.JSONDecodeError:
-                    args = {}
-            code = args.get("code", "")
-            collected_code.append(code)
-            print(f"\n[sandbox] running code:\n{code}")
-            result_str = sandbox.run(code, csv_path)
-            print(f"[sandbox] result: {result_str!r}")
-            messages.append({"role": "tool", "content": result_str})
-
-    return "", thinking, collected_code
-
-
 def query_openai_style_tools(
-    client,        # openai.OpenAI (real or pointed at localhost:11434/v1)
+    client,        # openai.OpenAI
     model: str,
     csv_text: str,
     question: str,
@@ -346,7 +215,7 @@ def query_openai_style_tools(
     csv_path: Path,
     semantic_context: str = "",
 ) -> tuple[str, str | None, list[str]]:
-    """Tool-calling query via OpenAI-compatible API (works for both OpenAI and Ollama)."""
+    """Tool-calling query via OpenAI API."""
     system = SYSTEM_PROMPT_SEMANTIC_TOOLS if semantic_context else SYSTEM_PROMPT_TOOLS
     messages: list[dict] = [
         {"role": "system", "content": system},
@@ -440,7 +309,6 @@ def query_anthropic_tools(
 # ---------------------------------------------------------------------------
 
 QUERY_FN: dict[str, Callable] = {
-    "ollama": query_ollama,
     "anthropic": query_anthropic,
     "openai": query_openai,
 }
@@ -448,7 +316,6 @@ QUERY_FN: dict[str, Callable] = {
 QUERY_FN_TOOLS: dict[str, Callable] = {
     "anthropic": query_anthropic_tools,
     "openai": query_openai_style_tools,
-    "ollama_tools": query_ollama_tools,
 }
 
 
@@ -604,20 +471,6 @@ def run_eval(
             print(f"ERROR: {exc}")
             sys.exit(1)
 
-    # Determine effective provider per model (handles Ollama tool-support check)
-    effective_providers: dict[str, str | None] = {}
-    for model in models:
-        provider = model_providers[model]
-        if tools and provider == "ollama":
-            if check_ollama_tool_support(model):
-                effective_providers[model] = "ollama_tools"
-                print(f"[tools] {model}: tool support confirmed")
-            else:
-                effective_providers[model] = "ollama"  # fall back to plain mode
-                print(f"[tools] {model}: no tool support — running without tools")
-        else:
-            effective_providers[model] = provider
-
     # Sandbox (lazy, only when tools=True)
     from sandbox import PythonSandbox
     sandbox = None
@@ -639,7 +492,7 @@ def run_eval(
     from dotenv import load_dotenv
     load_dotenv()
 
-    clients: dict[str, object] = {"ollama": None}
+    clients: dict[str, object] = {}
 
     if any(p == "anthropic" for p in model_providers.values()):
         import anthropic as _anthropic
@@ -656,9 +509,6 @@ def run_eval(
             print("ERROR: OPENAI_API_KEY not set in .env")
             sys.exit(1)
         clients["openai"] = _openai.OpenAI(api_key=api_key)
-
-    if tools and any(v == "ollama_tools" for v in effective_providers.values()):
-        clients["ollama_tools"] = None  # uses requests directly via native /api/chat
 
     results: list[dict] = []
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -703,13 +553,13 @@ def run_eval(
             answer_format = qa["answer_format"]
 
             for model in models:
-                eff = effective_providers[model]
-                use_tools = tools and eff in QUERY_FN_TOOLS
+                provider = model_providers[model]
+                use_tools = tools and provider in QUERY_FN_TOOLS
 
                 print(f"[{model}] {dataset}/{injector} → ", end="", flush=True)
 
-                query_fn = QUERY_FN_TOOLS[eff] if use_tools else QUERY_FN[model_providers[model]]
-                client = clients[eff if use_tools else model_providers[model]]
+                query_fn = QUERY_FN_TOOLS[provider] if use_tools else QUERY_FN[provider]
+                client = clients[provider]
 
                 thinking: str | None = None
                 code_list: list[str] = []
@@ -793,9 +643,8 @@ def print_summary(results: list[dict]) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
-            "Run QA eval against any combination of Ollama, Anthropic, and OpenAI models.\n"
+            "Run QA eval against any combination of Anthropic and OpenAI models.\n"
             "Provider is auto-detected from the model name:\n"
-            "  - Ollama:    name contains ':'  (e.g. deepseek-r1:8b)\n"
             "  - Anthropic: name starts with 'claude'\n"
             "  - OpenAI:    name starts with 'gpt-', 'o1', 'o3', or 'o4'"
         ),
@@ -833,7 +682,7 @@ def main() -> None:
         "--tools",
         action="store_true",
         default=False,
-        help="Enable Python code execution tool. Ollama models without tool support are skipped.",
+        help="Enable Python code execution tool.",
     )
     parser.add_argument(
         "--columns-only",
