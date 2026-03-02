@@ -43,6 +43,20 @@ SYSTEM_PROMPT = (
     "Answer the question concisely. Do not explain your reasoning."
 )
 
+SYSTEM_PROMPT_SEMANTIC = (
+    "You are an expert data analyst specializing in identifying genuine statistical anomalies "
+    "in Explainable Boosting Machine (EBM) model outputs.\n\n"
+    "EBMs are Generalized Additive Models where predictions are computed additively: "
+    "prediction = intercept + f₁(x₁) + f₂(x₂) + ... Each graph shows ONE term's learned "
+    "contribution. The X-axis shows feature values; the Y-axis shows that feature's additive "
+    "contribution to predictions.\n\n"
+    "For CLASSIFICATION: Y-axis is log-odds. Score 0 = neutral; ±0.3 is meaningful; ±0.7 is strong.\n"
+    "For REGRESSION: Y-axis is in target units. Significance depends on target scale.\n\n"
+    "Normal EBM behavior (NOT anomalies): piecewise constant (step function) appearance, "
+    "sharp jumps between bins, confidence bands widening at sparse tails.\n\n"
+    "You are a data analyst. Answer the question concisely. Do not explain your reasoning."
+)
+
 # Shared JSON schema used by all providers for structured output.
 ANSWER_SCHEMA = {
     "type": "object",
@@ -57,6 +71,13 @@ MAX_TOOL_ITER = 10
 SYSTEM_PROMPT_TOOLS = (
     "You are a data analyst. You are given a CSV dataset and a question about it.\n"
     "You have access to a Python execution tool. The variable df is already loaded "
+    "as a pandas DataFrame. Available libraries: pandas (as pd), numpy (as np), scipy.\n"
+    "Use run_python to compute values. When you have the final answer, respond with text only."
+)
+
+SYSTEM_PROMPT_SEMANTIC_TOOLS = (
+    SYSTEM_PROMPT_SEMANTIC + "\n\n"
+    "You also have access to a Python execution tool. The variable df is already loaded "
     "as a pandas DataFrame. Available libraries: pandas (as pd), numpy (as np), scipy.\n"
     "Use run_python to compute values. When you have the final answer, respond with text only."
 )
@@ -132,25 +153,38 @@ def check_ollama_tool_support(model: str) -> bool:
 # Query functions  (client, model, csv_text, question) -> (answer, thinking)
 # ---------------------------------------------------------------------------
 
+def _build_user_content(csv_text: str, question: str, semantic_context: str = "") -> str:
+    """Assemble user message, optionally injecting semantic context between data and question."""
+    parts = []
+    if csv_text:
+        parts.append(f"## Dataset\n{csv_text}")
+    if semantic_context:
+        parts.append(semantic_context)
+    parts.append(f"## Question\n{question}")
+    return "\n\n".join(parts)
+
+
 def query_ollama(
     _client: None,
     model: str,
     csv_text: str,
     question: str,
+    semantic_context: str = "",
 ) -> tuple[str, str | None]:
     """Query an Ollama model via /api/chat with structured JSON output."""
-    user_content = f"## Dataset\n{csv_text}\n\n## Question\n{question}"
+    system = SYSTEM_PROMPT_SEMANTIC if semantic_context else SYSTEM_PROMPT
+    user_content = _build_user_content(csv_text, question, semantic_context)
     payload = {
         "model": model,
         "stream": False,
         "format": ANSWER_SCHEMA,
         "options": {"num_predict": 512},
         "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system},
             {"role": "user", "content": user_content},
         ],
     }
-    resp = requests.post(OLLAMA_URL, json=payload, timeout=600)
+    resp = requests.post(OLLAMA_URL, json=payload, timeout=3600)
     resp.raise_for_status()
     data = resp.json()
     message = data.get("message", {})
@@ -172,14 +206,16 @@ def query_anthropic(
     model: str,
     csv_text: str,
     question: str,
+    semantic_context: str = "",
 ) -> tuple[str, str | None]:
     """Query an Anthropic model using tool-use for structured output."""
-    user_content = f"## Dataset\n{csv_text}\n\n## Question\n{question}"
+    system = SYSTEM_PROMPT_SEMANTIC if semantic_context else SYSTEM_PROMPT
+    user_content = _build_user_content(csv_text, question, semantic_context)
     use_thinking = model in THINKING_MODELS
     kwargs: dict = dict(
         model=model,
         max_tokens=16_000,
-        system=SYSTEM_PROMPT,
+        system=system,
         messages=[{"role": "user", "content": user_content}],
         tools=[
             {
@@ -212,14 +248,16 @@ def query_openai(
     model: str,
     csv_text: str,
     question: str,
+    semantic_context: str = "",
 ) -> tuple[str, str | None]:
     """Query an OpenAI model with JSON schema structured output."""
-    user_content = f"## Dataset\n{csv_text}\n\n## Question\n{question}"
+    system = SYSTEM_PROMPT_SEMANTIC if semantic_context else SYSTEM_PROMPT
+    user_content = _build_user_content(csv_text, question, semantic_context)
     resp = client.chat.completions.create(
         model=model,
         max_tokens=1024,
         messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system},
             {"role": "user", "content": user_content},
         ],
         response_format={
@@ -246,11 +284,13 @@ def query_ollama_tools(
     question: str,
     sandbox: "PythonSandbox",
     csv_path: Path,
+    semantic_context: str = "",
 ) -> tuple[str, str | None, list[str]]:
     """Tool-calling query via Ollama native /api/chat endpoint."""
+    system = SYSTEM_PROMPT_SEMANTIC_TOOLS if semantic_context else SYSTEM_PROMPT_TOOLS
     messages: list[dict] = [
-        {"role": "system", "content": SYSTEM_PROMPT_TOOLS},
-        {"role": "user", "content": f"## Dataset\n{csv_text}\n\n## Question\n{question}"},
+        {"role": "system", "content": system},
+        {"role": "user", "content": _build_user_content(csv_text, question, semantic_context)},
     ]
     thinking: str | None = None
     collected_code: list[str] = []
@@ -262,7 +302,7 @@ def query_ollama_tools(
             "messages": messages,
             "tools": [TOOL_RUN_PYTHON],
         }
-        resp = requests.post(OLLAMA_URL, json=payload, timeout=600)
+        resp = requests.post(OLLAMA_URL, json=payload, timeout=3600)
         resp.raise_for_status()
         message = resp.json().get("message", {})
 
@@ -304,11 +344,13 @@ def query_openai_style_tools(
     question: str,
     sandbox: "PythonSandbox",
     csv_path: Path,
+    semantic_context: str = "",
 ) -> tuple[str, str | None, list[str]]:
     """Tool-calling query via OpenAI-compatible API (works for both OpenAI and Ollama)."""
+    system = SYSTEM_PROMPT_SEMANTIC_TOOLS if semantic_context else SYSTEM_PROMPT_TOOLS
     messages: list[dict] = [
-        {"role": "system", "content": SYSTEM_PROMPT_TOOLS},
-        {"role": "user", "content": f"## Dataset\n{csv_text}\n\n## Question\n{question}"},
+        {"role": "system", "content": system},
+        {"role": "user", "content": _build_user_content(csv_text, question, semantic_context)},
     ]
     collected_code: list[str] = []
     for _ in range(MAX_TOOL_ITER):
@@ -344,11 +386,13 @@ def query_anthropic_tools(
     question: str,
     sandbox: "PythonSandbox",
     csv_path: Path,
+    semantic_context: str = "",
 ) -> tuple[str, str | None, list[str]]:
     """Tool-calling query via Anthropic API."""
+    system = SYSTEM_PROMPT_SEMANTIC_TOOLS if semantic_context else SYSTEM_PROMPT_TOOLS
     use_thinking = model in THINKING_MODELS
     kwargs: dict = dict(
-        model=model, max_tokens=16_000, system=SYSTEM_PROMPT_TOOLS,
+        model=model, max_tokens=16_000, system=system,
         tools=[ANTHROPIC_TOOL_RUN_PYTHON],
         tool_choice={"type": "auto"},
     )
@@ -356,7 +400,7 @@ def query_anthropic_tools(
         kwargs["thinking"] = {"type": "adaptive"}
 
     messages: list[dict] = [
-        {"role": "user", "content": f"## Dataset\n{csv_text}\n\n## Question\n{question}"},
+        {"role": "user", "content": _build_user_content(csv_text, question, semantic_context)},
     ]
     accumulated_thinking: str | None = None
     collected_code: list[str] = []
@@ -409,6 +453,104 @@ QUERY_FN_TOOLS: dict[str, Callable] = {
 
 
 # ---------------------------------------------------------------------------
+# Semantic context builder
+# ---------------------------------------------------------------------------
+
+_TOP_FEATURES_FOR_SHAPES = 5  # how many shape functions to include in the prompt
+
+
+def _build_semantic_context(instance_dir: Path) -> str:
+    """Build a compact semantic context block from pre-generated component files.
+
+    Loads semantic_metadata.json, feature_metadata.json, and graphs.json.gz,
+    then formats them into a text block suitable for injection into the prompt.
+    """
+    import gzip
+    import json
+
+    # Vendor imports (sys.path already patched by run_eval when semantic=True)
+    from intelligible_ai.surprise_finder.grapher import EBMGraph, graph_to_text
+    import numpy as np
+
+    sem_meta = json.loads((instance_dir / "semantic_metadata.json").read_text())
+    feat_meta = json.loads((instance_dir / "feature_metadata.json").read_text())
+
+    target = sem_meta["target"]
+    n_rows = sem_meta["n_rows"]
+    n_features = sem_meta["n_features"]
+
+    # Sort features by importance descending
+    sorted_feats = sorted(
+        feat_meta.items(),
+        key=lambda kv: kv[1].get("importance", 0.0),
+        reverse=True,
+    )
+
+    lines: list[str] = [
+        "## Semantic Context",
+        f"Target: {target} | Rows: {n_rows} | Features: {n_features}",
+        "",
+        "Feature Importances (EBM, ranked):",
+    ]
+    for rank, (fname, finfo) in enumerate(sorted_feats, 1):
+        imp = finfo.get("importance", 0.0)
+        desc = finfo.get("description", "")
+        stats_parts = []
+        if "min" in finfo and "max" in finfo:
+            stats_parts.append(f"Range {finfo['min']}–{finfo['max']}")
+        if "mean" in finfo:
+            stats_parts.append(f"mean {finfo['mean']}")
+        if "n_unique" in finfo:
+            stats_parts.append(f"{finfo['n_unique']} unique values")
+        stats_str = ", ".join(stats_parts)
+        desc_str = f" — {desc}" if desc else ""
+        suffix = f". {stats_str}." if stats_str else ""
+        lines.append(f"{rank}. {fname} ({imp:.3f}){desc_str}{suffix}")
+
+    # EBM shape functions for top N features
+    try:
+        with gzip.open(instance_dir / "graphs.json.gz", "rt", encoding="utf-8") as f:
+            graphs_data = json.load(f)
+
+        main_effects = graphs_data.get("main_effects", {})
+        # Take top N features that have valid graph data
+        top_feats_with_graphs = [
+            (fname, finfo)
+            for fname, finfo in sorted_feats
+            if fname in main_effects and "error" not in main_effects[fname]
+        ][:_TOP_FEATURES_FOR_SHAPES]
+
+        if top_feats_with_graphs:
+            lines.append("")
+            lines.append("## EBM Shape Functions")
+            for fname, _ in top_feats_with_graphs:
+                entry = main_effects[fname]
+                feat_type = entry["feature_type"]
+                scores = np.array(entry["scores"])
+                stds = np.array(entry["stds"])
+                if feat_type == "continuous":
+                    x_vals = [tuple(pair) for pair in entry["x_vals"]]
+                else:
+                    x_vals = entry["x_vals"]
+                graph = EBMGraph(
+                    feature_name=fname,
+                    feature_type=feat_type,
+                    x_vals=x_vals,
+                    scores=scores,
+                    stds=stds,
+                )
+                try:
+                    shape_text = graph_to_text(graph)
+                    lines.append(shape_text)
+                except Exception as exc:
+                    lines.append(f"[{fname}: shape function unavailable — {exc}]")
+    except Exception as exc:
+        lines.append(f"\n[EBM graphs unavailable: {exc}]")
+
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
 # Instance discovery
 # ---------------------------------------------------------------------------
 
@@ -443,6 +585,8 @@ def run_eval(
     injector: str | None = None,
     tools: bool = False,
     columns_only: bool = False,
+    semantic: bool = False,
+    csv_incontext: bool = False,
 ) -> list[dict]:
     manifests = discover_instances(instances_dir, dataset=dataset, injector=injector)
     if columns_only and dataset is None:
@@ -484,6 +628,13 @@ def run_eval(
         else:
             print(f"[sandbox] WARNING: could not launch Python at {sandbox._python}")
 
+    # Semantic layer setup (lazy — only when --semantic is passed)
+    if semantic:
+        _vendor = Path(__file__).parent.parent / "vendor" / "intelligible-ai" / "src"
+        if str(_vendor) not in sys.path:
+            sys.path.insert(0, str(_vendor))
+        from generate_semantic_components import semantic_components_exist
+
     # Lazy client initialization — only for providers actually needed
     from dotenv import load_dotenv
     load_dotenv()
@@ -519,12 +670,28 @@ def run_eval(
             import pandas as pd
             cols = pd.read_csv(instance_dir / "table.csv", nrows=0).columns.tolist()
             csv_text = "Columns: " + ", ".join(cols)
-        else:
+        elif csv_incontext:
             csv_text = (instance_dir / "table.csv").read_text()
-
+        else:
+            csv_text = ""
 
         dataset = manifest["dataset_name"]
         injector = manifest["phenomenon"]["injector_type"]
+
+        # Load pre-computed semantic components (generate via generate_semantic_components.py)
+        semantic_context = ""
+        semantic_ok = False
+        if semantic:
+            if semantic_components_exist(instance_dir):
+                try:
+                    semantic_context = _build_semantic_context(instance_dir)
+                    semantic_ok = True
+                except Exception as exc:
+                    print(f"  [semantic] WARNING: context build failed for {dataset}/{injector}: {exc} — skipping")
+                    continue
+            else:
+                print(f"  [semantic] WARNING: components not found for {dataset}/{injector} — skipping (run generate_semantic_components.py first)")
+                continue
 
         for qa in manifest["qa_pairs"]:
             if qa["answer"] is None:
@@ -548,9 +715,16 @@ def run_eval(
                 code_list: list[str] = []
                 try:
                     if use_tools:
-                        model_answer, thinking, code_list = query_fn(client, model, csv_text, question, sandbox, instance_dir / "table.csv")
+                        model_answer, thinking, code_list = query_fn(
+                            client, model, csv_text, question,
+                            sandbox, instance_dir / "table.csv",
+                            semantic_context=semantic_context,
+                        )
                     else:
-                        model_answer, thinking = query_fn(client, model, csv_text, question)
+                        model_answer, thinking = query_fn(
+                            client, model, csv_text, question,
+                            semantic_context=semantic_context,
+                        )
                 except Exception as exc:
                     model_answer = f"ERROR: {exc}"
 
@@ -571,6 +745,8 @@ def run_eval(
                     result["code"] = code_list
                 if thinking:
                     result["thinking"] = thinking
+                if semantic:
+                    result["semantic"] = semantic_ok
                 results.append(result)
                 output_path.write_text(json.dumps(results, indent=2))
 
@@ -665,6 +841,18 @@ def main() -> None:
         default=False,
         help="Replace the full CSV with just column names in the prompt (blind test).",
     )
+    parser.add_argument(
+        "--semantic",
+        action="store_true",
+        default=False,
+        help="Generate and include semantic layer components (EBM shapes, feature metadata) in the prompt.",
+    )
+    parser.add_argument(
+        "--csv-incontext",
+        action="store_true",
+        default=False,
+        help="Include the full CSV data in the prompt context.",
+    )
     args = parser.parse_args()
 
     if args.output is None:
@@ -677,12 +865,17 @@ def main() -> None:
             base = base.with_stem(base.stem + "_tools")
         if args.columns_only:
             base = base.with_stem(base.stem + "_columns_only")
+        if args.semantic:
+            base = base.with_stem(base.stem + "_semantic")
+        if args.csv_incontext:
+            base = base.with_stem(base.stem + "_csv")
         args.output = base
 
     results = run_eval(
         args.models, args.instances_dir, args.output,
         dataset=args.dataset, injector=args.injector, tools=args.tools,
-        columns_only=args.columns_only,
+        columns_only=args.columns_only, semantic=args.semantic,
+        csv_incontext=args.csv_incontext,
     )
     print_summary(results)
 
