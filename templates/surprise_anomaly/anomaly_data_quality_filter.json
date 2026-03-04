@@ -12,6 +12,14 @@
       "kind_any_of": ["binary", "categorical", "regression"],
       "dtype_any_of": ["bool", "int", "float", "string"],
       "unique_count_min": 2
+    },
+    "BAD_FRACTION": {
+      "type": "float",
+      "default": 0.1
+    },
+    "CORRUPTION_CAP_STD": {
+      "type": "float",
+      "default": 2.0
     }
   },
 
@@ -25,7 +33,9 @@
     {
       "injector": "anomaly_data_quality_filter",
       "param_mapping": {
-        "outcome_col": "{OUTCOME_COL}"
+        "outcome_col": "{OUTCOME_COL}",
+        "bad_fraction": "{BAD_FRACTION}",
+        "corruption_cap_std": "{CORRUPTION_CAP_STD}"
       }
     }
   ],

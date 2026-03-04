@@ -39,9 +39,9 @@ def inject(
     """
     df = df.copy()
     outcome_col = params["outcome_col"]
+    bad_fraction = float(params.get("bad_fraction", 0.1))
+    corruption_cap_std = float(params.get("corruption_cap_std", 2.0))
 
-    # Mark ~10% of rows as "bad"
-    bad_fraction = 0.1
     n = len(df)
     n_bad = max(1, int(n * bad_fraction))
     bad_indices = rng.choice(n, size=n_bad, replace=False)
@@ -70,7 +70,7 @@ def inject(
         outcome_std = 1.0
 
     corruption = np.abs(rng.normal(0, outcome_std * 0.5, n_bad))
-    corruption = np.minimum(corruption, outcome_std * 2.0)
+    corruption = np.minimum(corruption, outcome_std * corruption_cap_std)
     new_values = outcome_values.iloc[bad_indices].values + corruption
     non_null = outcome_values.dropna()
     if len(non_null) > 0 and np.all(np.isclose(non_null.values, np.rint(non_null.values))):
@@ -92,6 +92,7 @@ def inject(
         "indicator_col": renamed_indicator_col,
         "n_bad_rows": int(n_bad),
         "bad_fraction": bad_fraction,
+        "corruption_cap_std": corruption_cap_std,
         "bad_indices": bad_indices.tolist(),
     }
 
