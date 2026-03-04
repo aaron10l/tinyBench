@@ -46,7 +46,7 @@ def inject(
     # Randomly pick one of the two specified groups to be risky
     risky_group = group_a if rng.random() < 0.5 else group_b
     safe_group = group_b if risky_group == group_a else group_a
-    std_multiplier = 5.0
+    std_multiplier = float(params.get("std_multiplier", 5.0))
 
     global_mean = df[metric_col].astype(float).mean()
     global_std = df[metric_col].astype(float).std()

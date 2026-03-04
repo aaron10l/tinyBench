@@ -12,6 +12,8 @@ COMPUTE_FN = {
     "anomaly_data_quality_filter_v0": compute_anomaly_data_quality_filter,
     "anomaly_data_quality_filter_v1": compute_anomaly_data_quality_filter_v1,
     "anomaly_riskier_group_v0": compute_anomaly_riskier_group,
+    "anomaly_riskier_group_v1": compute_anomaly_riskier_group,
+    "anomaly_riskier_group_v2": compute_anomaly_riskier_group,
     "rca_retrain_point_v0": compute_rca_retrain_point,
     "rca_performance_improve_v0": compute_rca_performance_improve,
 }
