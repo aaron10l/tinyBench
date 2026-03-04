@@ -5,6 +5,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from collections import defaultdict
 from pathlib import Path
 from typing import Callable
@@ -136,7 +137,7 @@ def query_anthropic(
     csv_text: str,
     question: str,
     semantic_context: str = "",
-) -> tuple[str, str | None]:
+) -> tuple[str, str | None, dict]:
     """Query an Anthropic model using tool-use for structured output."""
     system = SYSTEM_PROMPT_SEMANTIC if semantic_context else SYSTEM_PROMPT
     user_content = _build_user_content(csv_text, question, semantic_context)
@@ -159,7 +160,21 @@ def query_anthropic(
     if use_thinking:
         kwargs["thinking"] = {"type": "adaptive"}
 
-    msg = client.messages.create(**kwargs)
+    start = time.time()
+    ttft: float | None = None
+    with client.messages.stream(**kwargs) as stream:
+        for event in stream:
+            if ttft is None and event.type == "content_block_delta":
+                ttft = time.time() - start
+        msg = stream.get_final_message()
+    total_latency = time.time() - start
+
+    metrics = {
+        "input_tokens": msg.usage.input_tokens,
+        "output_tokens": msg.usage.output_tokens,
+        "ttft_s": ttft,
+        "total_latency_s": total_latency,
+    }
 
     thinking: str | None = None
     answer = ""
@@ -169,7 +184,7 @@ def query_anthropic(
         elif block.type == "tool_use" and block.name == "submit_answer":
             answer = block.input.get("answer", "")
 
-    return answer, thinking
+    return answer, thinking, metrics
 
 
 def query_openai(
@@ -178,11 +193,16 @@ def query_openai(
     csv_text: str,
     question: str,
     semantic_context: str = "",
-) -> tuple[str, str | None]:
+) -> tuple[str, str | None, dict]:
     """Query an OpenAI model with JSON schema structured output."""
     system = SYSTEM_PROMPT_SEMANTIC if semantic_context else SYSTEM_PROMPT
     user_content = _build_user_content(csv_text, question, semantic_context)
-    resp = client.chat.completions.create(
+
+    start = time.time()
+    ttft: float | None = None
+    chunks: list[str] = []
+    usage = None
+    stream = client.chat.completions.create(
         model=model,
         max_tokens=1024,
         messages=[
@@ -197,13 +217,31 @@ def query_openai(
                 "schema": ANSWER_SCHEMA,
             },
         },
+        stream=True,
+        stream_options={"include_usage": True},
     )
-    raw = resp.choices[0].message.content or ""
+    for chunk in stream:
+        if ttft is None and chunk.choices and chunk.choices[0].delta.content:
+            ttft = time.time() - start
+        if chunk.choices and chunk.choices[0].delta.content:
+            chunks.append(chunk.choices[0].delta.content)
+        if chunk.usage:
+            usage = chunk.usage
+    raw = "".join(chunks)
+    total_latency = time.time() - start
+
+    metrics = {
+        "input_tokens": usage.prompt_tokens if usage else None,
+        "output_tokens": usage.completion_tokens if usage else None,
+        "ttft_s": ttft,
+        "total_latency_s": total_latency,
+    }
+
     try:
         answer = json.loads(raw)["answer"]
     except (json.JSONDecodeError, KeyError):
         answer = raw.strip()
-    return answer, None
+    return answer, None, metrics
 
 
 def query_openai_style_tools(
@@ -214,7 +252,7 @@ def query_openai_style_tools(
     sandbox: "PythonSandbox",
     csv_path: Path,
     semantic_context: str = "",
-) -> tuple[str, str | None, list[str]]:
+) -> tuple[str, str | None, list[str], dict]:
     """Tool-calling query via OpenAI API."""
     system = SYSTEM_PROMPT_SEMANTIC_TOOLS if semantic_context else SYSTEM_PROMPT_TOOLS
     messages: list[dict] = [
@@ -222,16 +260,24 @@ def query_openai_style_tools(
         {"role": "user", "content": _build_user_content(csv_text, question, semantic_context)},
     ]
     collected_code: list[str] = []
+    t0 = time.time()
+    total_input = total_output = 0
+
     for _ in range(MAX_TOOL_ITER):
         resp = client.chat.completions.create(
             model=model, max_tokens=2048, messages=messages,
             tools=[TOOL_RUN_PYTHON], tool_choice="auto",
         )
+        if resp.usage:
+            total_input += resp.usage.prompt_tokens
+            total_output += resp.usage.completion_tokens
         msg = resp.choices[0].message
         messages.append(msg.model_dump(exclude_unset=True))
 
         if not msg.tool_calls:
-            return msg.content or "", None, collected_code  # final answer
+            metrics = {"input_tokens": total_input, "output_tokens": total_output,
+                       "ttft_s": None, "total_latency_s": time.time() - t0}
+            return msg.content or "", None, collected_code, metrics  # final answer
 
         for tc in msg.tool_calls:
             try:
@@ -245,7 +291,9 @@ def query_openai_style_tools(
             print(f"[sandbox] result: {result_str!r}")
             messages.append({"role": "tool", "tool_call_id": tc.id, "content": result_str})
 
-    return "", None, collected_code  # max iterations reached
+    metrics = {"input_tokens": total_input, "output_tokens": total_output,
+               "ttft_s": None, "total_latency_s": time.time() - t0}
+    return "", None, collected_code, metrics  # max iterations reached
 
 
 def query_anthropic_tools(
@@ -256,7 +304,7 @@ def query_anthropic_tools(
     sandbox: "PythonSandbox",
     csv_path: Path,
     semantic_context: str = "",
-) -> tuple[str, str | None, list[str]]:
+) -> tuple[str, str | None, list[str], dict]:
     """Tool-calling query via Anthropic API."""
     system = SYSTEM_PROMPT_SEMANTIC_TOOLS if semantic_context else SYSTEM_PROMPT_TOOLS
     use_thinking = model in THINKING_MODELS
@@ -273,10 +321,14 @@ def query_anthropic_tools(
     ]
     accumulated_thinking: str | None = None
     collected_code: list[str] = []
+    t0 = time.time()
+    total_input = total_output = 0
 
     for _ in range(MAX_TOOL_ITER):
         kwargs["messages"] = messages
         msg = client.messages.create(**kwargs)
+        total_input += msg.usage.input_tokens
+        total_output += msg.usage.output_tokens
 
         tool_use_blocks, text_blocks = [], []
         for block in msg.content:
@@ -290,7 +342,9 @@ def query_anthropic_tools(
         messages.append({"role": "assistant", "content": msg.content})
 
         if not tool_use_blocks:
-            return " ".join(text_blocks), accumulated_thinking, collected_code  # final answer
+            metrics = {"input_tokens": total_input, "output_tokens": total_output,
+                       "ttft_s": None, "total_latency_s": time.time() - t0}
+            return " ".join(text_blocks), accumulated_thinking, collected_code, metrics  # final answer
 
         tool_results = []
         for block in tool_use_blocks:
@@ -301,7 +355,9 @@ def query_anthropic_tools(
 
         messages.append({"role": "user", "content": tool_results})
 
-    return "", accumulated_thinking, collected_code  # max iterations reached
+    metrics = {"input_tokens": total_input, "output_tokens": total_output,
+               "ttft_s": None, "total_latency_s": time.time() - t0}
+    return "", accumulated_thinking, collected_code, metrics  # max iterations reached
 
 
 # ---------------------------------------------------------------------------
@@ -563,15 +619,16 @@ def run_eval(
 
                 thinking: str | None = None
                 code_list: list[str] = []
+                metrics: dict = {}
                 try:
                     if use_tools:
-                        model_answer, thinking, code_list = query_fn(
+                        model_answer, thinking, code_list, metrics = query_fn(
                             client, model, csv_text, question,
                             sandbox, instance_dir / "table.csv",
                             semantic_context=semantic_context,
                         )
                     else:
-                        model_answer, thinking = query_fn(
+                        model_answer, thinking, metrics = query_fn(
                             client, model, csv_text, question,
                             semantic_context=semantic_context,
                         )
@@ -590,6 +647,7 @@ def run_eval(
                     "model_answer": model_answer,
                     "answer_format": answer_format,
                 }
+                result["metrics"] = metrics
                 if tools:
                     result["tools_enabled"] = use_tools
                     result["code"] = code_list
