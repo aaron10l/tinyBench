@@ -15,4 +15,5 @@ COMPUTE_FN = {
     "anomaly_riskier_group_v2": compute_anomaly_riskier_group,
     "rca_retrain_point_v0": compute_rca_retrain_point,
     "rca_performance_improve_v0": compute_rca_performance_improve,
+    "rca_performance_improve_v1": compute_rca_performance_improve,
 }
