@@ -46,7 +46,7 @@ def inject(
     # Randomly pick one of the two specified groups to be risky
     risky_group = group_a if rng.random() < 0.5 else group_b
     safe_group = group_b if risky_group == group_a else group_a
-    variance_multiplier = 5.0
+    std_multiplier = 5.0
 
     global_mean = df[metric_col].astype(float).mean()
     global_std = df[metric_col].astype(float).std()
@@ -62,7 +62,7 @@ def inject(
         if is_risky:
             # High variance, centered on global mean
             df.loc[mask, metric_col] = global_mean + rng.normal(
-                0, global_std * variance_multiplier, n
+                0, global_std * std_multiplier, n
             )
         else:
             # Low variance, centered on global mean
@@ -86,7 +86,7 @@ def inject(
     effects = {
         "risky_group": str(risky_group),
         "safe_group": str(safe_group),
-        "variance_multiplier": variance_multiplier,
+        "std_multiplier": std_multiplier,
         "global_mean": float(global_mean),
     }
 
