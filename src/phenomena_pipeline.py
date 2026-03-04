@@ -346,10 +346,21 @@ def build_instance(
         table_rows.append([injector_type, template_ids, _fmt_params(params), "OK"])
         output_dirs.append(out_dir)
 
+    # Append unmatched templates to the table
+    for m in matches:
+        if m.is_compatible:
+            continue
+        injectors = m.template.get("phenomena", [])
+        injector_name = injectors[0]["injector"] if injectors else "-"
+        reason = "; ".join(m.reasons)
+        if len(reason) > 50:
+            reason = reason[:47] + "..."
+        table_rows.append([injector_name, m.template["template_id"], reason, "NO MATCH"])
+
     # Print compact summary
     print(f"\n{dataset_name}  ({len(compatible)}/{len(matches)} templates, seed {seed})")
     _print_table(
-        ["Injector", "Template", "Params", "Status"],
+        ["Injector", "Template", "Params / Reason", "Status"],
         table_rows,
     )
 
