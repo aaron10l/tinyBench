@@ -31,7 +31,7 @@ DEFAULT_OUTPUT = Path("data/results/eval_results.json")
 
 THINKING_MODELS = {"claude-opus-4-6", "claude-sonnet-4-6"}
 
-SYSTEM_PROMPT = "You are a data analyst. Answer the question about the dataset concisely."
+SYSTEM_PROMPT = "You are a data analyst. Answer the question about the dataset concisely. Return ONLY the answer in the exact format requested with no extra text."
 
 SYSTEM_PROMPT_TOOLS = SYSTEM_PROMPT + "\nRespond with text only when you have the final answer."
 
@@ -564,7 +564,7 @@ def run_eval(
     injector: str | None = None,
     enabled_tools: set = frozenset(),
     columns_only: bool = False,
-    csv_incontext: bool = False,
+    table_in_prompt: bool = False,
     debug: bool = False,
 ) -> list[dict]:
     manifests = discover_instances(instances_dir, dataset=dataset, injector=injector)
@@ -628,7 +628,7 @@ def run_eval(
             import pandas as pd
             cols = pd.read_csv(instance_dir / "table.csv", nrows=0).columns.tolist()
             csv_text = "Columns: " + ", ".join(cols)
-        elif csv_incontext:
+        elif table_in_prompt:
             csv_text = (instance_dir / "table.csv").read_text()
         else:
             csv_text = ""
@@ -795,7 +795,7 @@ def main() -> None:
         help="Replace the full CSV with just column names in the prompt (blind test).",
     )
     parser.add_argument(
-        "--csv-incontext",
+        "--table-in-prompt",
         action="store_true",
         default=False,
         help="Include the full CSV data in the prompt context.",
@@ -819,8 +819,8 @@ def main() -> None:
             base = base.with_stem(base.stem + suffix)
         if args.columns_only:
             base = base.with_stem(base.stem + "_columns_only")
-        if args.csv_incontext:
-            base = base.with_stem(base.stem + "_csv")
+        if args.table_in_prompt:
+            base = base.with_stem(base.stem + "_table_in_prompt")
         args.output = base
 
     enabled_tools = set(args.tools) if args.tools else set()
@@ -829,7 +829,7 @@ def main() -> None:
         dataset=args.dataset, injector=args.injector,
         enabled_tools=enabled_tools,
         columns_only=args.columns_only,
-        csv_incontext=args.csv_incontext,
+        table_in_prompt=args.table_in_prompt,
         debug=args.debug,
     )
     print_summary(results)
