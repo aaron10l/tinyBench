@@ -31,10 +31,7 @@ DEFAULT_OUTPUT = Path("data/results/eval_results.json")
 
 THINKING_MODELS = {"claude-opus-4-6", "claude-sonnet-4-6"}
 
-SYSTEM_PROMPT = (
-    "You are a data analyst. You are given a CSV dataset and a question about it.\n"
-    "Answer the question concisely. Do not explain your reasoning."
-)
+SYSTEM_PROMPT = "You are a data analyst. Answer the question about the dataset concisely."
 
 SYSTEM_PROMPT_SEMANTIC = (
     "You are an expert data analyst specializing in identifying genuine statistical anomalies "
@@ -60,20 +57,6 @@ ANSWER_SCHEMA = {
 
 MAX_TOOL_ITER = 10
 
-SYSTEM_PROMPT_TOOLS = (
-    "You are a data analyst. You are given a CSV dataset and a question about it.\n"
-    "You have access to a Python execution tool. The variable df is already loaded "
-    "as a pandas DataFrame. Available libraries: pandas (as pd), numpy (as np), scipy.\n"
-    "Use run_python to compute values. When you have the final answer, respond with text only."
-)
-
-SYSTEM_PROMPT_SEMANTIC_TOOLS = (
-    SYSTEM_PROMPT_SEMANTIC + "\n\n"
-    "You also have access to a Python execution tool. The variable df is already loaded "
-    "as a pandas DataFrame. Available libraries: pandas (as pd), numpy (as np), scipy.\n"
-    "Use run_python to compute values. When you have the final answer, respond with text only."
-)
-
 TOOL_RUN_PYTHON = {
     "type": "function",
     "function": {
@@ -98,6 +81,32 @@ ANTHROPIC_TOOL_RUN_PYTHON = {
         "additionalProperties": False,
     },
 }
+
+TOOL_LOAD_DATA = {
+    "type": "function",
+    "function": {
+        "name": "load_data",
+        "description": "Load the full dataset as a CSV string. Call this to inspect column names, data types, and raw values.",
+        "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": False},
+    },
+}
+
+ANTHROPIC_TOOL_LOAD_DATA = {
+    "name": "load_data",
+    "description": "Load the full dataset as a CSV string. Call this to inspect column names, data types, and raw values.",
+    "input_schema": {"type": "object", "properties": {}, "required": [], "additionalProperties": False},
+}
+
+def _build_tools_system_prompt(enabled_tools: set, semantic_context: str) -> str:
+    base = SYSTEM_PROMPT_SEMANTIC if semantic_context else SYSTEM_PROMPT
+    tool_lines = []
+    if "load_data" in enabled_tools:
+        tool_lines.append("- load_data(): retrieves the full dataset as a CSV string")
+    if "run_python" in enabled_tools:
+        tool_lines.append("- run_python(code): executes Python; df is pre-loaded as a DataFrame (pandas, numpy, scipy available)")
+    tools_str = "\nTools:\n" + "\n".join(tool_lines)
+    return base + tools_str + "\nRespond with text only when you have the final answer."
+
 
 # ---------------------------------------------------------------------------
 # Provider detection
@@ -252,21 +261,27 @@ def query_openai_style_tools(
     sandbox: "PythonSandbox",
     csv_path: Path,
     semantic_context: str = "",
-) -> tuple[str, str | None, list[str], dict]:
+    enabled_tools: set = frozenset({"run_python"}),
+) -> tuple[str, str | None, list[dict], dict]:
     """Tool-calling query via OpenAI API."""
-    system = SYSTEM_PROMPT_SEMANTIC_TOOLS if semantic_context else SYSTEM_PROMPT_TOOLS
+    system = _build_tools_system_prompt(enabled_tools, semantic_context)
+    tools_list = []
+    if "load_data" in enabled_tools:
+        tools_list.append(TOOL_LOAD_DATA)
+    if "run_python" in enabled_tools:
+        tools_list.append(TOOL_RUN_PYTHON)
     messages: list[dict] = [
         {"role": "system", "content": system},
         {"role": "user", "content": _build_user_content(csv_text, question, semantic_context)},
     ]
-    collected_code: list[str] = []
+    tool_use_log: list[dict] = []
     t0 = time.time()
     total_input = total_output = 0
 
     for _ in range(MAX_TOOL_ITER):
         resp = client.chat.completions.create(
             model=model, max_tokens=2048, messages=messages,
-            tools=[TOOL_RUN_PYTHON], tool_choice="auto",
+            tools=tools_list, tool_choice="auto",
         )
         if resp.usage:
             total_input += resp.usage.prompt_tokens
@@ -277,23 +292,27 @@ def query_openai_style_tools(
         if not msg.tool_calls:
             metrics = {"input_tokens": total_input, "output_tokens": total_output,
                        "ttft_s": None, "total_latency_s": time.time() - t0}
-            return msg.content or "", None, collected_code, metrics  # final answer
+            return msg.content or "", None, tool_use_log, metrics  # final answer
 
         for tc in msg.tool_calls:
-            try:
-                args = json.loads(tc.function.arguments)
-            except json.JSONDecodeError:
-                args = {}
-            code = args.get("code", "")
-            collected_code.append(code)
-            print(f"\n[sandbox] running code:\n{code}")
-            result_str = sandbox.run(code, csv_path)
-            print(f"[sandbox] result: {result_str!r}")
+            if tc.function.name == "load_data":
+                tool_use_log.append({"tool": "load_data"})
+                result_str = csv_path.read_text()
+            else:  # run_python
+                try:
+                    args = json.loads(tc.function.arguments)
+                except json.JSONDecodeError:
+                    args = {}
+                code = args.get("code", "")
+                tool_use_log.append({"tool": "run_python", "input": code})
+                print(f"\n[sandbox] running code:\n{code}")
+                result_str = sandbox.run(code, csv_path)
+                print(f"[sandbox] result: {result_str!r}")
             messages.append({"role": "tool", "tool_call_id": tc.id, "content": result_str})
 
     metrics = {"input_tokens": total_input, "output_tokens": total_output,
                "ttft_s": None, "total_latency_s": time.time() - t0}
-    return "", None, collected_code, metrics  # max iterations reached
+    return "", None, tool_use_log, metrics  # max iterations reached
 
 
 def query_anthropic_tools(
@@ -304,13 +323,19 @@ def query_anthropic_tools(
     sandbox: "PythonSandbox",
     csv_path: Path,
     semantic_context: str = "",
-) -> tuple[str, str | None, list[str], dict]:
+    enabled_tools: set = frozenset({"run_python"}),
+) -> tuple[str, str | None, list[dict], dict]:
     """Tool-calling query via Anthropic API."""
-    system = SYSTEM_PROMPT_SEMANTIC_TOOLS if semantic_context else SYSTEM_PROMPT_TOOLS
+    system = _build_tools_system_prompt(enabled_tools, semantic_context)
+    tools_list = []
+    if "load_data" in enabled_tools:
+        tools_list.append(ANTHROPIC_TOOL_LOAD_DATA)
+    if "run_python" in enabled_tools:
+        tools_list.append(ANTHROPIC_TOOL_RUN_PYTHON)
     use_thinking = model in THINKING_MODELS
     kwargs: dict = dict(
         model=model, max_tokens=16_000, system=system,
-        tools=[ANTHROPIC_TOOL_RUN_PYTHON],
+        tools=tools_list,
         tool_choice={"type": "auto"},
     )
     if use_thinking:
@@ -320,7 +345,7 @@ def query_anthropic_tools(
         {"role": "user", "content": _build_user_content(csv_text, question, semantic_context)},
     ]
     accumulated_thinking: str | None = None
-    collected_code: list[str] = []
+    tool_use_log: list[dict] = []
     t0 = time.time()
     total_input = total_output = 0
 
@@ -344,20 +369,24 @@ def query_anthropic_tools(
         if not tool_use_blocks:
             metrics = {"input_tokens": total_input, "output_tokens": total_output,
                        "ttft_s": None, "total_latency_s": time.time() - t0}
-            return " ".join(text_blocks), accumulated_thinking, collected_code, metrics  # final answer
+            return " ".join(text_blocks), accumulated_thinking, tool_use_log, metrics  # final answer
 
         tool_results = []
         for block in tool_use_blocks:
-            code = block.input.get("code", "")
-            collected_code.append(code)
-            result_str = sandbox.run(code, csv_path)
+            if block.name == "load_data":
+                tool_use_log.append({"tool": "load_data"})
+                result_str = csv_path.read_text()
+            else:  # run_python
+                code = block.input.get("code", "")
+                tool_use_log.append({"tool": "run_python", "input": code})
+                result_str = sandbox.run(code, csv_path)
             tool_results.append({"type": "tool_result", "tool_use_id": block.id, "content": result_str})
 
         messages.append({"role": "user", "content": tool_results})
 
     metrics = {"input_tokens": total_input, "output_tokens": total_output,
                "ttft_s": None, "total_latency_s": time.time() - t0}
-    return "", accumulated_thinking, collected_code, metrics  # max iterations reached
+    return "", accumulated_thinking, tool_use_log, metrics  # max iterations reached
 
 
 # ---------------------------------------------------------------------------
@@ -506,7 +535,7 @@ def run_eval(
     output_path: Path,
     dataset: str | None = None,
     injector: str | None = None,
-    tools: bool = False,
+    enabled_tools: set = frozenset(),
     columns_only: bool = False,
     semantic: bool = False,
     csv_incontext: bool = False,
@@ -527,10 +556,10 @@ def run_eval(
             print(f"ERROR: {exc}")
             sys.exit(1)
 
-    # Sandbox (lazy, only when tools=True)
+    # Sandbox (lazy, only when run_python is enabled)
     from sandbox import PythonSandbox
     sandbox = None
-    if tools:
+    if "run_python" in enabled_tools:
         sandbox = PythonSandbox()
         if sandbox.ping():
             print(f"[sandbox] ready ({sandbox._python})")
@@ -572,7 +601,9 @@ def run_eval(
     for manifest_path in manifests:
         manifest = load_json(manifest_path)
         instance_dir = manifest_path.parent
-        if columns_only:
+        if "load_data" in enabled_tools:
+            csv_text = ""
+        elif columns_only:
             import pandas as pd
             cols = pd.read_csv(instance_dir / "table.csv", nrows=0).columns.tolist()
             csv_text = "Columns: " + ", ".join(cols)
@@ -610,7 +641,7 @@ def run_eval(
 
             for model in models:
                 provider = model_providers[model]
-                use_tools = tools and provider in QUERY_FN_TOOLS
+                use_tools = bool(enabled_tools) and provider in QUERY_FN_TOOLS
 
                 print(f"[{model}] {dataset}/{injector} → ", end="", flush=True)
 
@@ -618,14 +649,15 @@ def run_eval(
                 client = clients[provider]
 
                 thinking: str | None = None
-                code_list: list[str] = []
+                tool_use_log: list[dict] = []
                 metrics: dict = {}
                 try:
                     if use_tools:
-                        model_answer, thinking, code_list, metrics = query_fn(
+                        model_answer, thinking, tool_use_log, metrics = query_fn(
                             client, model, csv_text, question,
                             sandbox, instance_dir / "table.csv",
                             semantic_context=semantic_context,
+                            enabled_tools=enabled_tools,
                         )
                     else:
                         model_answer, thinking, metrics = query_fn(
@@ -648,9 +680,9 @@ def run_eval(
                     "answer_format": answer_format,
                 }
                 result["metrics"] = metrics
-                if tools:
-                    result["tools_enabled"] = use_tools
-                    result["code"] = code_list
+                if enabled_tools:
+                    result["tools_enabled"] = sorted(enabled_tools)
+                    result["tool_use"] = tool_use_log
                 if thinking:
                     result["thinking"] = thinking
                 if semantic:
@@ -738,9 +770,11 @@ def main() -> None:
     )
     parser.add_argument(
         "--tools",
-        action="store_true",
-        default=False,
-        help="Enable Python code execution tool.",
+        nargs="+",
+        choices=["load_data", "run_python"],
+        default=None,
+        metavar="TOOL",
+        help="Tools to expose to the model: load_data, run_python, or both.",
     )
     parser.add_argument(
         "--columns-only",
@@ -769,7 +803,8 @@ def main() -> None:
         else:
             base = DEFAULT_OUTPUT
         if args.tools:
-            base = base.with_stem(base.stem + "_tools")
+            suffix = "_tools_" + "_".join(sorted(args.tools))
+            base = base.with_stem(base.stem + suffix)
         if args.columns_only:
             base = base.with_stem(base.stem + "_columns_only")
         if args.semantic:
@@ -778,9 +813,11 @@ def main() -> None:
             base = base.with_stem(base.stem + "_csv")
         args.output = base
 
+    enabled_tools = set(args.tools) if args.tools else set()
     results = run_eval(
         args.models, args.instances_dir, args.output,
-        dataset=args.dataset, injector=args.injector, tools=args.tools,
+        dataset=args.dataset, injector=args.injector,
+        enabled_tools=enabled_tools,
         columns_only=args.columns_only, semantic=args.semantic,
         csv_incontext=args.csv_incontext,
     )
