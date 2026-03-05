@@ -33,6 +33,8 @@ THINKING_MODELS = {"claude-opus-4-6", "claude-sonnet-4-6"}
 
 SYSTEM_PROMPT = "You are a data analyst. Answer the question about the dataset concisely."
 
+SYSTEM_PROMPT_TOOLS = SYSTEM_PROMPT + "\nRespond with text only when you have the final answer."
+
 # Shared JSON schema used by all providers for structured output.
 ANSWER_SCHEMA = {
     "type": "object",
@@ -121,16 +123,6 @@ def _print_request(system: str, user_content: str, tools: list[dict]) -> None:
     print(sep + "\n")
 
 
-def _build_tools_system_prompt(enabled_tools: set) -> str:
-    tool_lines = []
-    if "load_data" in enabled_tools:
-        tool_lines.append("- load_data(): load the full dataset as a CSV string")
-    if "get_semantic_context" in enabled_tools:
-        tool_lines.append("- get_semantic_context(component, feature?): retrieve EBM semantic components — overview, feature_importances, or shape_function")
-    if "run_python" in enabled_tools:
-        tool_lines.append("- run_python(code): execute Python; df is pre-loaded as a DataFrame (pandas, numpy, scipy available)")
-    tools_str = "\nTools:\n" + "\n".join(tool_lines)
-    return SYSTEM_PROMPT + tools_str + "\nRespond with text only when you have the final answer."
 
 
 # ---------------------------------------------------------------------------
@@ -282,7 +274,7 @@ def query_openai_style_tools(
     enabled_tools: set = frozenset({"run_python"}),
 ) -> tuple[str, str | None, list[dict], dict]:
     """Tool-calling query via OpenAI API."""
-    system = _build_tools_system_prompt(enabled_tools)
+    system = SYSTEM_PROMPT_TOOLS
     tools_list = [_openai_tool(t) for t in ("load_data", "run_python", "get_semantic_context") if t in enabled_tools]
     messages: list[dict] = [
         {"role": "system", "content": system},
@@ -359,7 +351,7 @@ def query_anthropic_tools(
     enabled_tools: set = frozenset({"run_python"}),
 ) -> tuple[str, str | None, list[dict], dict]:
     """Tool-calling query via Anthropic API."""
-    system = _build_tools_system_prompt(enabled_tools)
+    system = SYSTEM_PROMPT_TOOLS
     tools_list = [_anthropic_tool(t) for t in ("load_data", "run_python", "get_semantic_context") if t in enabled_tools]
     use_thinking = model in THINKING_MODELS
     kwargs: dict = dict(
@@ -666,7 +658,7 @@ def run_eval(
                 tool_use_log: list[dict] = []
                 metrics: dict = {}
                 if debug and not _debug_printed:
-                    system = _build_tools_system_prompt(enabled_tools) if use_tools else SYSTEM_PROMPT
+                    system = SYSTEM_PROMPT_TOOLS if use_tools else SYSTEM_PROMPT
                     user_content = _build_user_content(csv_text, question)
                     tools_list = (
                         [_anthropic_tool(t) for t in ("load_data", "run_python", "get_semantic_context") if t in enabled_tools]
