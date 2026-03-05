@@ -15,6 +15,7 @@ import argparse
 import dataclasses
 import hashlib
 import re
+import shutil
 import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
@@ -214,8 +215,9 @@ def _fmt_params(params: dict, max_len: int = 50) -> str:
     return s
 
 
-def _print_table(headers: List[str], rows: List[List[str]]) -> None:
+def _print_table(headers: List[str], rows: List[List[str]], max_last_col: int = 50) -> None:
     """Print a simple aligned table with box-drawing borders."""
+    rows = [row[:-1] + [row[-1][:max_last_col - 3] + "..." if len(row[-1]) > max_last_col else row[-1]] for row in rows]
     col_widths = [len(h) for h in headers]
     for row in rows:
         for i, cell in enumerate(row):
@@ -318,7 +320,20 @@ def build_instance(
                 df_to_save = df_injected.drop(columns=drop)
 
         # Generate QA pairs only for relevant templates
-        qa_pairs = generate_qa_pairs(relevant_matches, df_to_save, [phenom_result], all_warnings)
+        instance_warnings: List[str] = []
+        qa_pairs = generate_qa_pairs(relevant_matches, df_to_save, [phenom_result], instance_warnings)
+
+        # Reject instance if any QA pair has no answer — answer computer failed
+        failed_templates = [qa["template_id"] for qa in qa_pairs if qa["answer"] is None]
+        if failed_templates:
+            all_warnings.extend(instance_warnings)
+            reason = f"answer computer failed: {', '.join(failed_templates)}"
+            table_rows.append([injector_type, ", ".join(failed_templates), _fmt_params(params), f"SKIP ({reason})"])
+            # Remove stale instance directory from a previous run if it exists
+            out_dir = dataset_dir.parent / "instances" / dataset_name / f"seed_{seed}" / injector_type
+            if out_dir.exists():
+                shutil.rmtree(out_dir)
+            continue
 
         # Save outputs to phenomenon-specific directory
         out_dir = dataset_dir.parent / "instances" / dataset_name / f"seed_{seed}" / injector_type
