@@ -57,45 +57,39 @@ ANSWER_SCHEMA = {
 
 MAX_TOOL_ITER = 10
 
-TOOL_RUN_PYTHON = {
-    "type": "function",
-    "function": {
-        "name": "run_python",
+_TOOL_SPECS = {
+    "run_python": {
         "description": "Execute Python code. df is pre-loaded as a pandas DataFrame. Use print() to produce output.",
-        "parameters": {
-            "type": "object",
-            "properties": {"code": {"type": "string"}},
-            "required": ["code"],
-            "additionalProperties": False,
-        },
-    },
-}
-
-ANTHROPIC_TOOL_RUN_PYTHON = {
-    "name": "run_python",
-    "description": "Execute Python code. df is pre-loaded as a pandas DataFrame. Use print() to produce output.",
-    "input_schema": {
-        "type": "object",
         "properties": {"code": {"type": "string"}},
         "required": ["code"],
-        "additionalProperties": False,
     },
-}
-
-TOOL_LOAD_DATA = {
-    "type": "function",
-    "function": {
-        "name": "load_data",
+    "load_data": {
         "description": "Load the full dataset as a CSV string. Call this to inspect column names, data types, and raw values.",
-        "parameters": {"type": "object", "properties": {}, "required": [], "additionalProperties": False},
+        "properties": {},
+        "required": [],
     },
 }
 
-ANTHROPIC_TOOL_LOAD_DATA = {
-    "name": "load_data",
-    "description": "Load the full dataset as a CSV string. Call this to inspect column names, data types, and raw values.",
-    "input_schema": {"type": "object", "properties": {}, "required": [], "additionalProperties": False},
-}
+def _openai_tool(name: str) -> dict:
+    spec = _TOOL_SPECS[name]
+    return {
+        "type": "function",
+        "function": {
+            "name": name,
+            "description": spec["description"],
+            "parameters": {"type": "object", "properties": spec["properties"],
+                           "required": spec["required"], "additionalProperties": False},
+        },
+    }
+
+def _anthropic_tool(name: str) -> dict:
+    spec = _TOOL_SPECS[name]
+    return {
+        "name": name,
+        "description": spec["description"],
+        "input_schema": {"type": "object", "properties": spec["properties"],
+                         "required": spec["required"], "additionalProperties": False},
+    }
 
 def _build_tools_system_prompt(enabled_tools: set, semantic_context: str) -> str:
     base = SYSTEM_PROMPT_SEMANTIC if semantic_context else SYSTEM_PROMPT
@@ -265,11 +259,7 @@ def query_openai_style_tools(
 ) -> tuple[str, str | None, list[dict], dict]:
     """Tool-calling query via OpenAI API."""
     system = _build_tools_system_prompt(enabled_tools, semantic_context)
-    tools_list = []
-    if "load_data" in enabled_tools:
-        tools_list.append(TOOL_LOAD_DATA)
-    if "run_python" in enabled_tools:
-        tools_list.append(TOOL_RUN_PYTHON)
+    tools_list = [_openai_tool(t) for t in ("load_data", "run_python") if t in enabled_tools]
     messages: list[dict] = [
         {"role": "system", "content": system},
         {"role": "user", "content": _build_user_content(csv_text, question, semantic_context)},
@@ -327,11 +317,7 @@ def query_anthropic_tools(
 ) -> tuple[str, str | None, list[dict], dict]:
     """Tool-calling query via Anthropic API."""
     system = _build_tools_system_prompt(enabled_tools, semantic_context)
-    tools_list = []
-    if "load_data" in enabled_tools:
-        tools_list.append(ANTHROPIC_TOOL_LOAD_DATA)
-    if "run_python" in enabled_tools:
-        tools_list.append(ANTHROPIC_TOOL_RUN_PYTHON)
+    tools_list = [_anthropic_tool(t) for t in ("load_data", "run_python") if t in enabled_tools]
     use_thinking = model in THINKING_MODELS
     kwargs: dict = dict(
         model=model, max_tokens=16_000, system=system,
