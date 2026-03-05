@@ -68,6 +68,25 @@ _TOOL_SPECS = {
         "properties": {},
         "required": [],
     },
+    "get_semantic_context": {
+        "description": "Retrieve a specific EBM semantic component for this dataset.",
+        "properties": {
+            "component": {
+                "type": "string",
+                "enum": ["overview", "feature_importances", "shape_function"],
+                "description": (
+                    "'overview': dataset metadata (target, row/feature counts). "
+                    "'feature_importances': all features ranked by EBM importance with descriptions and stats. "
+                    "'shape_function': EBM shape function for one feature — also pass 'feature' to specify which one."
+                ),
+            },
+            "feature": {
+                "type": "string",
+                "description": "Feature name. Required when component='shape_function'.",
+            },
+        },
+        "required": ["component"],
+    },
 }
 
 def _openai_tool(name: str) -> dict:
@@ -91,11 +110,13 @@ def _anthropic_tool(name: str) -> dict:
                          "required": spec["required"], "additionalProperties": False},
     }
 
-def _build_tools_system_prompt(enabled_tools: set, semantic_context: str) -> str:
-    base = SYSTEM_PROMPT_SEMANTIC if semantic_context else SYSTEM_PROMPT
+def _build_tools_system_prompt(enabled_tools: set) -> str:
+    base = SYSTEM_PROMPT_SEMANTIC if "get_semantic_context" in enabled_tools else SYSTEM_PROMPT
     tool_lines = []
     if "load_data" in enabled_tools:
         tool_lines.append("- load_data(): retrieves the full dataset as a CSV string")
+    if "get_semantic_context" in enabled_tools:
+        tool_lines.append("- get_semantic_context(component, feature?): retrieves EBM components — overview, feature_importances, or shape_function")
     if "run_python" in enabled_tools:
         tool_lines.append("- run_python(code): executes Python; df is pre-loaded as a DataFrame (pandas, numpy, scipy available)")
     tools_str = "\nTools:\n" + "\n".join(tool_lines)
@@ -123,13 +144,11 @@ def detect_provider(model: str) -> str:
 # Query functions  (client, model, csv_text, question) -> (answer, thinking)
 # ---------------------------------------------------------------------------
 
-def _build_user_content(csv_text: str, question: str, semantic_context: str = "") -> str:
-    """Assemble user message, optionally injecting semantic context between data and question."""
+def _build_user_content(csv_text: str, question: str) -> str:
+    """Assemble user message from dataset and question."""
     parts = []
     if csv_text:
         parts.append(f"## Dataset\n{csv_text}")
-    if semantic_context:
-        parts.append(semantic_context)
     parts.append(f"## Question\n{question}")
     return "\n\n".join(parts)
 
@@ -139,16 +158,14 @@ def query_anthropic(
     model: str,
     csv_text: str,
     question: str,
-    semantic_context: str = "",
 ) -> tuple[str, str | None, dict]:
     """Query an Anthropic model using tool-use for structured output."""
-    system = SYSTEM_PROMPT_SEMANTIC if semantic_context else SYSTEM_PROMPT
-    user_content = _build_user_content(csv_text, question, semantic_context)
+    user_content = _build_user_content(csv_text, question)
     use_thinking = model in THINKING_MODELS
     kwargs: dict = dict(
         model=model,
         max_tokens=16_000,
-        system=system,
+        system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_content}],
         tools=[
             {
@@ -195,11 +212,9 @@ def query_openai(
     model: str,
     csv_text: str,
     question: str,
-    semantic_context: str = "",
 ) -> tuple[str, str | None, dict]:
     """Query an OpenAI model with JSON schema structured output."""
-    system = SYSTEM_PROMPT_SEMANTIC if semantic_context else SYSTEM_PROMPT
-    user_content = _build_user_content(csv_text, question, semantic_context)
+    user_content = _build_user_content(csv_text, question)
 
     start = time.time()
     ttft: float | None = None
@@ -209,7 +224,7 @@ def query_openai(
         model=model,
         max_tokens=1024,
         messages=[
-            {"role": "system", "content": system},
+            {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_content},
         ],
         response_format={
@@ -254,15 +269,14 @@ def query_openai_style_tools(
     question: str,
     sandbox: "PythonSandbox",
     csv_path: Path,
-    semantic_context: str = "",
     enabled_tools: set = frozenset({"run_python"}),
 ) -> tuple[str, str | None, list[dict], dict]:
     """Tool-calling query via OpenAI API."""
-    system = _build_tools_system_prompt(enabled_tools, semantic_context)
-    tools_list = [_openai_tool(t) for t in ("load_data", "run_python") if t in enabled_tools]
+    system = _build_tools_system_prompt(enabled_tools)
+    tools_list = [_openai_tool(t) for t in ("load_data", "run_python", "get_semantic_context") if t in enabled_tools]
     messages: list[dict] = [
         {"role": "system", "content": system},
-        {"role": "user", "content": _build_user_content(csv_text, question, semantic_context)},
+        {"role": "user", "content": _build_user_content(csv_text, question)},
     ]
     tool_use_log: list[dict] = []
     t0 = time.time()
@@ -285,9 +299,29 @@ def query_openai_style_tools(
             return msg.content or "", None, tool_use_log, metrics  # final answer
 
         for tc in msg.tool_calls:
-            if tc.function.name == "load_data":
+            tool_name = tc.function.name
+            if tool_name == "load_data":
                 tool_use_log.append({"tool": "load_data"})
                 result_str = csv_path.read_text()
+            elif tool_name == "get_semantic_context":
+                try:
+                    args = json.loads(tc.function.arguments)
+                except json.JSONDecodeError:
+                    args = {}
+                component = args.get("component", "overview")
+                feature = args.get("feature", "")
+                tool_use_log.append({"tool": "get_semantic_context", "input": {"component": component, **({"feature": feature} if feature else {})}})
+                try:
+                    if component == "overview":
+                        result_str = _semantic_overview(csv_path.parent)
+                    elif component == "feature_importances":
+                        result_str = _semantic_feature_importances(csv_path.parent)
+                    elif component == "shape_function":
+                        result_str = _semantic_shape_function(csv_path.parent, feature)
+                    else:
+                        result_str = f"Unknown component: {component}"
+                except Exception as exc:
+                    result_str = f"[get_semantic_context failed: {exc}]"
             else:  # run_python
                 try:
                     args = json.loads(tc.function.arguments)
@@ -312,12 +346,11 @@ def query_anthropic_tools(
     question: str,
     sandbox: "PythonSandbox",
     csv_path: Path,
-    semantic_context: str = "",
     enabled_tools: set = frozenset({"run_python"}),
 ) -> tuple[str, str | None, list[dict], dict]:
     """Tool-calling query via Anthropic API."""
-    system = _build_tools_system_prompt(enabled_tools, semantic_context)
-    tools_list = [_anthropic_tool(t) for t in ("load_data", "run_python") if t in enabled_tools]
+    system = _build_tools_system_prompt(enabled_tools)
+    tools_list = [_anthropic_tool(t) for t in ("load_data", "run_python", "get_semantic_context") if t in enabled_tools]
     use_thinking = model in THINKING_MODELS
     kwargs: dict = dict(
         model=model, max_tokens=16_000, system=system,
@@ -328,7 +361,7 @@ def query_anthropic_tools(
         kwargs["thinking"] = {"type": "adaptive"}
 
     messages: list[dict] = [
-        {"role": "user", "content": _build_user_content(csv_text, question, semantic_context)},
+        {"role": "user", "content": _build_user_content(csv_text, question)},
     ]
     accumulated_thinking: str | None = None
     tool_use_log: list[dict] = []
@@ -362,6 +395,21 @@ def query_anthropic_tools(
             if block.name == "load_data":
                 tool_use_log.append({"tool": "load_data"})
                 result_str = csv_path.read_text()
+            elif block.name == "get_semantic_context":
+                component = block.input.get("component", "overview")
+                feature = block.input.get("feature", "")
+                tool_use_log.append({"tool": "get_semantic_context", "input": {"component": component, **({"feature": feature} if feature else {})}})
+                try:
+                    if component == "overview":
+                        result_str = _semantic_overview(csv_path.parent)
+                    elif component == "feature_importances":
+                        result_str = _semantic_feature_importances(csv_path.parent)
+                    elif component == "shape_function":
+                        result_str = _semantic_shape_function(csv_path.parent, feature)
+                    else:
+                        result_str = f"Unknown component: {component}"
+                except Exception as exc:
+                    result_str = f"[get_semantic_context failed: {exc}]"
             else:  # run_python
                 code = block.input.get("code", "")
                 tool_use_log.append({"tool": "run_python", "input": code})
@@ -391,45 +439,34 @@ QUERY_FN_TOOLS: dict[str, Callable] = {
 
 
 # ---------------------------------------------------------------------------
-# Semantic context builder
+# Semantic context helpers (called at tool-dispatch time)
 # ---------------------------------------------------------------------------
 
-_TOP_FEATURES_FOR_SHAPES = 5  # how many shape functions to include in the prompt
-
-
-def _build_semantic_context(instance_dir: Path) -> str:
-    """Build a compact semantic context block from pre-generated component files.
-
-    Loads semantic_metadata.json, feature_metadata.json, and graphs.json.gz,
-    then formats them into a text block suitable for injection into the prompt.
-    """
-    import gzip
-    import json
-
-    # Vendor imports (sys.path already patched by run_eval when semantic=True)
-    from intelligible_ai.surprise_finder.grapher import EBMGraph, graph_to_text
-    import numpy as np
-
+def _semantic_overview(instance_dir: Path) -> str:
+    """Return dataset metadata: target, row/feature counts, feature list."""
     sem_meta = json.loads((instance_dir / "semantic_metadata.json").read_text())
     feat_meta = json.loads((instance_dir / "feature_metadata.json").read_text())
-
     target = sem_meta["target"]
     n_rows = sem_meta["n_rows"]
     n_features = sem_meta["n_features"]
+    features = list(feat_meta.keys())
+    lines = [
+        f"Target: {target}",
+        f"Rows: {n_rows}",
+        f"Features ({n_features}): {', '.join(features)}",
+    ]
+    return "\n".join(lines)
 
-    # Sort features by importance descending
+
+def _semantic_feature_importances(instance_dir: Path) -> str:
+    """Return all features ranked by EBM importance with descriptions and stats."""
+    feat_meta = json.loads((instance_dir / "feature_metadata.json").read_text())
     sorted_feats = sorted(
         feat_meta.items(),
         key=lambda kv: kv[1].get("importance", 0.0),
         reverse=True,
     )
-
-    lines: list[str] = [
-        "## Semantic Context",
-        f"Target: {target} | Rows: {n_rows} | Features: {n_features}",
-        "",
-        "Feature Importances (EBM, ranked):",
-    ]
+    lines = ["Feature Importances (EBM, ranked):"]
     for rank, (fname, finfo) in enumerate(sorted_feats, 1):
         imp = finfo.get("importance", 0.0)
         desc = finfo.get("description", "")
@@ -444,48 +481,50 @@ def _build_semantic_context(instance_dir: Path) -> str:
         desc_str = f" — {desc}" if desc else ""
         suffix = f". {stats_str}." if stats_str else ""
         lines.append(f"{rank}. {fname} ({imp:.3f}){desc_str}{suffix}")
-
-    # EBM shape functions for top N features
-    try:
-        with gzip.open(instance_dir / "graphs.json.gz", "rt", encoding="utf-8") as f:
-            graphs_data = json.load(f)
-
-        main_effects = graphs_data.get("main_effects", {})
-        # Take top N features that have valid graph data
-        top_feats_with_graphs = [
-            (fname, finfo)
-            for fname, finfo in sorted_feats
-            if fname in main_effects and "error" not in main_effects[fname]
-        ][:_TOP_FEATURES_FOR_SHAPES]
-
-        if top_feats_with_graphs:
-            lines.append("")
-            lines.append("## EBM Shape Functions")
-            for fname, _ in top_feats_with_graphs:
-                entry = main_effects[fname]
-                feat_type = entry["feature_type"]
-                scores = np.array(entry["scores"])
-                stds = np.array(entry["stds"])
-                if feat_type == "continuous":
-                    x_vals = [tuple(pair) for pair in entry["x_vals"]]
-                else:
-                    x_vals = entry["x_vals"]
-                graph = EBMGraph(
-                    feature_name=fname,
-                    feature_type=feat_type,
-                    x_vals=x_vals,
-                    scores=scores,
-                    stds=stds,
-                )
-                try:
-                    shape_text = graph_to_text(graph)
-                    lines.append(shape_text)
-                except Exception as exc:
-                    lines.append(f"[{fname}: shape function unavailable — {exc}]")
-    except Exception as exc:
-        lines.append(f"\n[EBM graphs unavailable: {exc}]")
-
     return "\n".join(lines)
+
+
+def _semantic_shape_function(instance_dir: Path, feature: str) -> str:
+    """Return the EBM shape function text for the named feature."""
+    import gzip
+
+    # Lazy vendor sys.path setup
+    _vendor = Path(__file__).parent.parent / "vendor" / "intelligible-ai" / "src"
+    if str(_vendor) not in sys.path:
+        sys.path.insert(0, str(_vendor))
+    from intelligible_ai.surprise_finder.grapher import EBMGraph, graph_to_text
+    import numpy as np
+
+    if not feature:
+        return "Error: 'feature' parameter is required for component='shape_function'"
+
+    with gzip.open(instance_dir / "graphs.json.gz", "rt", encoding="utf-8") as f:
+        graphs_data = json.load(f)
+
+    main_effects = graphs_data.get("main_effects", {})
+    if feature not in main_effects:
+        available = list(main_effects.keys())
+        return f"Feature '{feature}' not found. Available features: {', '.join(available)}"
+
+    entry = main_effects[feature]
+    if "error" in entry:
+        return f"Shape function for '{feature}' has an error: {entry['error']}"
+
+    feat_type = entry["feature_type"]
+    scores = np.array(entry["scores"])
+    stds = np.array(entry["stds"])
+    if feat_type == "continuous":
+        x_vals = [tuple(pair) for pair in entry["x_vals"]]
+    else:
+        x_vals = entry["x_vals"]
+    graph = EBMGraph(
+        feature_name=feature,
+        feature_type=feat_type,
+        x_vals=x_vals,
+        scores=scores,
+        stds=stds,
+    )
+    return graph_to_text(graph)
 
 
 # ---------------------------------------------------------------------------
@@ -523,7 +562,6 @@ def run_eval(
     injector: str | None = None,
     enabled_tools: set = frozenset(),
     columns_only: bool = False,
-    semantic: bool = False,
     csv_incontext: bool = False,
 ) -> list[dict]:
     manifests = discover_instances(instances_dir, dataset=dataset, injector=injector)
@@ -551,13 +589,6 @@ def run_eval(
             print(f"[sandbox] ready ({sandbox._python})")
         else:
             print(f"[sandbox] WARNING: could not launch Python at {sandbox._python}")
-
-    # Semantic layer setup (lazy — only when --semantic is passed)
-    if semantic:
-        _vendor = Path(__file__).parent.parent / "vendor" / "intelligible-ai" / "src"
-        if str(_vendor) not in sys.path:
-            sys.path.insert(0, str(_vendor))
-        from generate_semantic_components import semantic_components_exist
 
     # Lazy client initialization — only for providers actually needed
     from dotenv import load_dotenv
@@ -601,21 +632,6 @@ def run_eval(
         dataset = manifest["dataset_name"]
         injector = manifest["phenomenon"]["injector_type"]
 
-        # Load pre-computed semantic components (generate via generate_semantic_components.py)
-        semantic_context = ""
-        semantic_ok = False
-        if semantic:
-            if semantic_components_exist(instance_dir):
-                try:
-                    semantic_context = _build_semantic_context(instance_dir)
-                    semantic_ok = True
-                except Exception as exc:
-                    print(f"  [semantic] WARNING: context build failed for {dataset}/{injector}: {exc} — skipping")
-                    continue
-            else:
-                print(f"  [semantic] WARNING: components not found for {dataset}/{injector} — skipping (run generate_semantic_components.py first)")
-                continue
-
         for qa in manifest["qa_pairs"]:
             if qa["answer"] is None:
                 continue
@@ -642,13 +658,11 @@ def run_eval(
                         model_answer, thinking, tool_use_log, metrics = query_fn(
                             client, model, csv_text, question,
                             sandbox, instance_dir / "table.csv",
-                            semantic_context=semantic_context,
                             enabled_tools=enabled_tools,
                         )
                     else:
                         model_answer, thinking, metrics = query_fn(
                             client, model, csv_text, question,
-                            semantic_context=semantic_context,
                         )
                 except Exception as exc:
                     model_answer = f"ERROR: {exc}"
@@ -671,8 +685,6 @@ def run_eval(
                     result["tool_use"] = tool_use_log
                 if thinking:
                     result["thinking"] = thinking
-                if semantic:
-                    result["semantic"] = semantic_ok
                 results.append(result)
                 output_path.write_text(json.dumps(results, indent=2))
 
@@ -757,22 +769,16 @@ def main() -> None:
     parser.add_argument(
         "--tools",
         nargs="+",
-        choices=["load_data", "run_python"],
+        choices=["load_data", "run_python", "get_semantic_context"],
         default=None,
         metavar="TOOL",
-        help="Tools to expose to the model: load_data, run_python, or both.",
+        help="Tools to expose to the model: load_data, run_python, get_semantic_context, or any combination.",
     )
     parser.add_argument(
         "--columns-only",
         action="store_true",
         default=False,
         help="Replace the full CSV with just column names in the prompt (blind test).",
-    )
-    parser.add_argument(
-        "--semantic",
-        action="store_true",
-        default=False,
-        help="Generate and include semantic layer components (EBM shapes, feature metadata) in the prompt.",
     )
     parser.add_argument(
         "--csv-incontext",
@@ -793,8 +799,6 @@ def main() -> None:
             base = base.with_stem(base.stem + suffix)
         if args.columns_only:
             base = base.with_stem(base.stem + "_columns_only")
-        if args.semantic:
-            base = base.with_stem(base.stem + "_semantic")
         if args.csv_incontext:
             base = base.with_stem(base.stem + "_csv")
         args.output = base
@@ -804,7 +808,7 @@ def main() -> None:
         args.models, args.instances_dir, args.output,
         dataset=args.dataset, injector=args.injector,
         enabled_tools=enabled_tools,
-        columns_only=args.columns_only, semantic=args.semantic,
+        columns_only=args.columns_only,
         csv_incontext=args.csv_incontext,
     )
     print_summary(results)
