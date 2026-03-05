@@ -33,20 +33,6 @@ THINKING_MODELS = {"claude-opus-4-6", "claude-sonnet-4-6"}
 
 SYSTEM_PROMPT = "You are a data analyst. Answer the question about the dataset concisely."
 
-SYSTEM_PROMPT_SEMANTIC = (
-    "You are an expert data analyst specializing in identifying genuine statistical anomalies "
-    "in Explainable Boosting Machine (EBM) model outputs.\n\n"
-    "EBMs are Generalized Additive Models where predictions are computed additively: "
-    "prediction = intercept + f₁(x₁) + f₂(x₂) + ... Each graph shows ONE term's learned "
-    "contribution. The X-axis shows feature values; the Y-axis shows that feature's additive "
-    "contribution to predictions.\n\n"
-    "For CLASSIFICATION: Y-axis is log-odds. Score 0 = neutral; ±0.3 is meaningful; ±0.7 is strong.\n"
-    "For REGRESSION: Y-axis is in target units. Significance depends on target scale.\n\n"
-    "Normal EBM behavior (NOT anomalies): piecewise constant (step function) appearance, "
-    "sharp jumps between bins, confidence bands widening at sparse tails.\n\n"
-    "You are a data analyst. Answer the question concisely. Do not explain your reasoning."
-)
-
 # Shared JSON schema used by all providers for structured output.
 ANSWER_SCHEMA = {
     "type": "object",
@@ -69,7 +55,14 @@ _TOOL_SPECS = {
         "required": [],
     },
     "get_semantic_context": {
-        "description": "Retrieve a specific EBM semantic component for this dataset.",
+        "description": (
+            "Retrieve EBM (Explainable Boosting Machine) semantic components for this dataset. "
+            "EBMs are Generalized Additive Models: prediction = intercept + f₁(x₁) + f₂(x₂) + ... "
+            "Each feature contributes independently and additively. "
+            "For classification, additive contributions are in log-odds (±0.3 meaningful, ±0.7 strong); "
+            "for regression, in target units. "
+            "Normal behavior includes piecewise steps and confidence bands widening at sparse tails."
+        ),
         "properties": {
             "component": {
                 "type": "string",
@@ -129,16 +122,15 @@ def _print_request(system: str, user_content: str, tools: list[dict]) -> None:
 
 
 def _build_tools_system_prompt(enabled_tools: set) -> str:
-    base = SYSTEM_PROMPT_SEMANTIC if "get_semantic_context" in enabled_tools else SYSTEM_PROMPT
     tool_lines = []
     if "load_data" in enabled_tools:
-        tool_lines.append("- load_data(): retrieves the full dataset as a CSV string")
+        tool_lines.append("- load_data(): load the full dataset as a CSV string")
     if "get_semantic_context" in enabled_tools:
-        tool_lines.append("- get_semantic_context(component, feature?): retrieves EBM components — overview, feature_importances, or shape_function")
+        tool_lines.append("- get_semantic_context(component, feature?): retrieve EBM semantic components — overview, feature_importances, or shape_function")
     if "run_python" in enabled_tools:
-        tool_lines.append("- run_python(code): executes Python; df is pre-loaded as a DataFrame (pandas, numpy, scipy available)")
+        tool_lines.append("- run_python(code): execute Python; df is pre-loaded as a DataFrame (pandas, numpy, scipy available)")
     tools_str = "\nTools:\n" + "\n".join(tool_lines)
-    return base + tools_str + "\nRespond with text only when you have the final answer."
+    return SYSTEM_PROMPT + tools_str + "\nRespond with text only when you have the final answer."
 
 
 # ---------------------------------------------------------------------------
