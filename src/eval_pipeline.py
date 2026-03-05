@@ -110,6 +110,24 @@ def _anthropic_tool(name: str) -> dict:
                          "required": spec["required"], "additionalProperties": False},
     }
 
+def _print_request(system: str, user_content: str, tools: list[dict]) -> None:
+    """Print the full initial request payload for debugging."""
+    sep = "─" * 72
+    print(f"\n{sep}")
+    print("DEBUG: INITIAL REQUEST")
+    print(sep)
+    print("SYSTEM PROMPT:")
+    print(system)
+    print(sep)
+    print("USER MESSAGE:")
+    print(user_content)
+    if tools:
+        print(sep)
+        print("TOOLS:")
+        print(json.dumps(tools, indent=2))
+    print(sep + "\n")
+
+
 def _build_tools_system_prompt(enabled_tools: set) -> str:
     base = SYSTEM_PROMPT_SEMANTIC if "get_semantic_context" in enabled_tools else SYSTEM_PROMPT
     tool_lines = []
@@ -563,6 +581,7 @@ def run_eval(
     enabled_tools: set = frozenset(),
     columns_only: bool = False,
     csv_incontext: bool = False,
+    debug: bool = False,
 ) -> list[dict]:
     manifests = discover_instances(instances_dir, dataset=dataset, injector=injector)
     if columns_only and dataset is None:
@@ -614,6 +633,7 @@ def run_eval(
 
     results: list[dict] = []
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    _debug_printed = False
 
     for manifest_path in manifests:
         manifest = load_json(manifest_path)
@@ -653,6 +673,16 @@ def run_eval(
                 thinking: str | None = None
                 tool_use_log: list[dict] = []
                 metrics: dict = {}
+                if debug and not _debug_printed:
+                    system = _build_tools_system_prompt(enabled_tools) if use_tools else SYSTEM_PROMPT
+                    user_content = _build_user_content(csv_text, question)
+                    tools_list = (
+                        [_anthropic_tool(t) for t in ("load_data", "run_python", "get_semantic_context") if t in enabled_tools]
+                        if provider == "anthropic" else
+                        [_openai_tool(t) for t in ("load_data", "run_python", "get_semantic_context") if t in enabled_tools]
+                    ) if use_tools else []
+                    _print_request(system, user_content, tools_list)
+                    _debug_printed = True
                 try:
                     if use_tools:
                         model_answer, thinking, tool_use_log, metrics = query_fn(
@@ -786,6 +816,12 @@ def main() -> None:
         default=False,
         help="Include the full CSV data in the prompt context.",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        default=False,
+        help="Print the full initial request (system prompt, user message, tools) before the first API call.",
+    )
     args = parser.parse_args()
 
     if args.output is None:
@@ -810,6 +846,7 @@ def main() -> None:
         enabled_tools=enabled_tools,
         columns_only=args.columns_only,
         csv_incontext=args.csv_incontext,
+        debug=args.debug,
     )
     print_summary(results)
 
