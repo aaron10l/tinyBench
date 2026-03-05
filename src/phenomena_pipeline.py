@@ -132,6 +132,7 @@ def _compute_answer_safe(
     df: pd.DataFrame,
     slot_assignments: Dict[str, str],
     effects: Dict[str, Any],
+    warnings: List[str],
 ) -> Any:
     compute_fn = COMPUTE_FN.get(template_id)
     if compute_fn is None:
@@ -139,7 +140,7 @@ def _compute_answer_safe(
     try:
         return compute_fn(df, slot_assignments, effects)
     except Exception as exc:
-        print(f"  Warning: answer computer {template_id} failed: {str(exc)[:80]}")
+        warnings.append(f"  Warning: answer computer {template_id} failed: {str(exc)[:80]}")
         return None
 
 
@@ -147,6 +148,7 @@ def generate_qa_pairs(
     matches: List[TemplateMatch],
     df: pd.DataFrame,
     phenomena_results: List[PhenomenaResult],
+    warnings: List[str],
 ) -> List[Dict[str, Any]]:
     """Build a list of QA dicts from compatible template matches."""
     # Index effects by injector type for lookup
@@ -168,7 +170,7 @@ def generate_qa_pairs(
                 template_effects[injector] = effects_by_type[injector]
 
         answer = _compute_answer_safe(
-            template_id, df, m.slot_assignments, template_effects,
+            template_id, df, m.slot_assignments, template_effects, warnings,
         )
 
         qa_pairs.append({
@@ -266,6 +268,7 @@ def build_instance(
     # 4. Create one instance per phenomenon
     output_dirs: List[Path] = []
     table_rows: List[List[str]] = []
+    all_warnings: List[str] = []
 
     id_no_cols = summary.get("by_kind", {}).get("id_no", [])
 
@@ -315,7 +318,7 @@ def build_instance(
                 df_to_save = df_injected.drop(columns=drop)
 
         # Generate QA pairs only for relevant templates
-        qa_pairs = generate_qa_pairs(relevant_matches, df_to_save, [phenom_result])
+        qa_pairs = generate_qa_pairs(relevant_matches, df_to_save, [phenom_result], all_warnings)
 
         # Save outputs to phenomenon-specific directory
         out_dir = dataset_dir.parent / "instances" / dataset_name / f"seed_{seed}" / injector_type
@@ -363,6 +366,8 @@ def build_instance(
         ["Injector", "Template", "Params / Reason", "Status"],
         table_rows,
     )
+    for w in all_warnings:
+        print(w)
 
     return output_dirs
 
