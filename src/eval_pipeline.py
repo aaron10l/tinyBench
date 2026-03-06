@@ -129,6 +129,13 @@ def _print_request(system: str, user_content: str, tools: list[dict]) -> None:
 # Provider detection
 # ---------------------------------------------------------------------------
 
+def _openai_tokens_kwarg(model: str, n: int) -> dict:
+    """Return the correct token-limit kwarg for the given OpenAI model."""
+    if model.startswith(("o1", "o3", "o4")):
+        return {"max_completion_tokens": n}
+    return {"max_tokens": n}
+
+
 def detect_provider(model: str) -> str:
     """Infer the provider from the model name."""
     if model.startswith("claude"):
@@ -224,7 +231,7 @@ def query_openai(
     usage = None
     stream = client.chat.completions.create(
         model=model,
-        max_tokens=1024,
+        **_openai_tokens_kwarg(model, 1024),
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_content},
@@ -286,7 +293,7 @@ def query_openai_style_tools(
 
     for _ in range(MAX_TOOL_ITER):
         resp = client.chat.completions.create(
-            model=model, max_tokens=2048, messages=messages,
+            model=model, **_openai_tokens_kwarg(model, 2048), messages=messages,
             tools=tools_list, tool_choice="auto",
         )
         if resp.usage:
