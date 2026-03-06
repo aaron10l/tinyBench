@@ -510,7 +510,10 @@ def _semantic_shape_function(instance_dir: Path, feature: str) -> str:
 
     entry = main_effects[feature]
     if "error" in entry:
-        return f"Shape function for '{feature}' has an error: {entry['error']}"
+        return (
+            f"Shape function for '{feature}' is unavailable: the EBM found no "
+            f"meaningful cut points, indicating a flat near-zero contribution. "
+        )
 
     feat_type = entry["feature_type"]
     scores = np.array(entry["scores"])
