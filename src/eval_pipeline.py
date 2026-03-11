@@ -29,7 +29,7 @@ DEFAULT_MODELS = [
 DEFAULT_INSTANCES_DIR = Path("data/instances")
 DEFAULT_OUTPUT = Path("data/results/eval_results.json")
 
-THINKING_MODELS = {"claude-opus-4-6", "claude-sonnet-4-6"}
+THINKING_MODELS = {"claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"}
 
 SYSTEM_PROMPT = "You are a data analyst. Answer the question about the dataset concisely. Return ONLY the answer in the exact format requested with no extra text."
 
