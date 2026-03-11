@@ -61,6 +61,7 @@ _TOOL_SPECS = {
             "Retrieve EBM (Explainable Boosting Machine) semantic components for this dataset. "
             "EBMs are Generalized Additive Models: prediction = intercept + f₁(x₁) + f₂(x₂) + ... "
             "Each feature contributes independently and additively. "
+            "EBMs also capture pairwise feature interactions beyond the additive main effects. "
             "For classification, additive contributions are in log-odds (±0.3 meaningful, ±0.7 strong); "
             "for regression, in target units. "
             "Normal behavior includes piecewise steps and confidence bands widening at sparse tails."
@@ -68,16 +69,21 @@ _TOOL_SPECS = {
         "properties": {
             "component": {
                 "type": "string",
-                "enum": ["overview", "feature_importances", "shape_function"],
+                "enum": ["overview", "feature_importances", "shape_function", "interaction"],
                 "description": (
                     "'overview': dataset metadata (target, row/feature counts). "
                     "'feature_importances': all features ranked by EBM importance with descriptions and stats. "
-                    "'shape_function': EBM shape function for one feature — also pass 'feature' to specify which one."
+                    "'shape_function': EBM shape function for one feature — also pass 'feature' to specify which one. "
+                    "'interaction': pairwise feature interaction importance — pass 'feature' and 'feature2' to look up a specific pair, or omit both to list all interactions ranked by importance."
                 ),
             },
             "feature": {
                 "type": "string",
-                "description": "Feature name. Required when component='shape_function'.",
+                "description": "First feature name. Required for 'shape_function', optional for 'interaction'.",
+            },
+            "feature2": {
+                "type": "string",
+                "description": "Second feature name. Used with component='interaction' to look up a specific pair.",
             },
         },
         "required": ["component"],
@@ -319,7 +325,13 @@ def query_openai_style_tools(
                     args = {}
                 component = args.get("component", "overview")
                 feature = args.get("feature", "")
-                tool_use_log.append({"tool": "get_semantic_context", "input": {"component": component, **({"feature": feature} if feature else {})}})
+                feature2 = args.get("feature2", "")
+                log_input = {"component": component}
+                if feature:
+                    log_input["feature"] = feature
+                if feature2:
+                    log_input["feature2"] = feature2
+                tool_use_log.append({"tool": "get_semantic_context", "input": log_input})
                 try:
                     if component == "overview":
                         result_str = _semantic_overview(csv_path.parent)
@@ -327,6 +339,8 @@ def query_openai_style_tools(
                         result_str = _semantic_feature_importances(csv_path.parent)
                     elif component == "shape_function":
                         result_str = _semantic_shape_function(csv_path.parent, feature)
+                    elif component == "interaction":
+                        result_str = _semantic_interaction(csv_path.parent, feature, feature2)
                     else:
                         result_str = f"Unknown component: {component}"
                 except Exception as exc:
@@ -407,7 +421,13 @@ def query_anthropic_tools(
             elif block.name == "get_semantic_context":
                 component = block.input.get("component", "overview")
                 feature = block.input.get("feature", "")
-                tool_use_log.append({"tool": "get_semantic_context", "input": {"component": component, **({"feature": feature} if feature else {})}})
+                feature2 = block.input.get("feature2", "")
+                log_input = {"component": component}
+                if feature:
+                    log_input["feature"] = feature
+                if feature2:
+                    log_input["feature2"] = feature2
+                tool_use_log.append({"tool": "get_semantic_context", "input": log_input})
                 try:
                     if component == "overview":
                         result_str = _semantic_overview(csv_path.parent)
@@ -415,6 +435,8 @@ def query_anthropic_tools(
                         result_str = _semantic_feature_importances(csv_path.parent)
                     elif component == "shape_function":
                         result_str = _semantic_shape_function(csv_path.parent, feature)
+                    elif component == "interaction":
+                        result_str = _semantic_interaction(csv_path.parent, feature, feature2)
                     else:
                         result_str = f"Unknown component: {component}"
                 except Exception as exc:
@@ -537,6 +559,47 @@ def _semantic_shape_function(instance_dir: Path, feature: str) -> str:
         stds=stds,
     )
     return graph_to_text(graph)
+
+
+def _semantic_interaction(instance_dir: Path, feature: str, feature2: str) -> str:
+    """Return pairwise interaction importance for two features, or list all."""
+    import gzip
+
+    with gzip.open(instance_dir / "graphs.json.gz", "rt", encoding="utf-8") as f:
+        graphs_data = json.load(f)
+
+    interactions = graphs_data.get("interactions", [])
+    if not interactions:
+        return "No pairwise interactions available for this dataset."
+
+    if not feature and not feature2:
+        # List all interactions ranked by importance
+        ranked = sorted(interactions, key=lambda x: x["importance"], reverse=True)
+        lines = ["Pairwise Feature Interactions (EBM, ranked by importance):"]
+        for rank, entry in enumerate(ranked, 1):
+            pair = entry["features"][0] if entry["features"] else "?"
+            lines.append(f"{rank}. {pair} ({entry['importance']:.4f})")
+        return "\n".join(lines)
+
+    if not feature or not feature2:
+        return "Error: both 'feature' and 'feature2' are required to look up a specific interaction."
+
+    # Look up the specific pair (order-insensitive)
+    target_pairs = {f"{feature} & {feature2}", f"{feature2} & {feature}"}
+    for entry in interactions:
+        pair_str = entry["features"][0] if entry["features"] else ""
+        if pair_str in target_pairs:
+            return (
+                f"Interaction: {pair_str}\n"
+                f"Importance: {entry['importance']:.6f}"
+            )
+
+    available = [e["features"][0] for e in interactions if e["features"]]
+    return (
+        f"No interaction found between '{feature}' and '{feature2}'. "
+        f"Available interactions ({len(available)}): {', '.join(available[:20])}"
+        + ("..." if len(available) > 20 else "")
+    )
 
 
 # ---------------------------------------------------------------------------
