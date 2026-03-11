@@ -41,9 +41,11 @@ def grade_entry(client, model: str, entry: dict) -> tuple[str, str]:
     """Return (grade, reasoning) for a single result entry."""
     model_answer = entry.get("model_answer", "")
 
-    # Auto-grade timeouts and errors without calling the API
+    # Auto-grade errors and empty answers without calling the API
     if isinstance(model_answer, str) and model_answer.startswith("ERROR:"):
         return "INCORRECT", "Request errored or timed out — no answer produced."
+    if not model_answer or (isinstance(model_answer, str) and not model_answer.strip()):
+        return "INCORRECT", "Model produced no answer."
 
     expected = entry["expected_answer"]
     user_content = (
@@ -54,6 +56,7 @@ def grade_entry(client, model: str, entry: dict) -> tuple[str, str]:
 
     resp = client.chat.completions.create(
         model=model,
+        timeout=60,
         messages=[
             {"role": "system", "content": GRADE_SYSTEM_PROMPT},
             {"role": "user", "content": user_content},
@@ -108,7 +111,7 @@ def main() -> None:
     if args.output:
         output_path = Path(args.output)
     else:
-        output_path = input_path.parent / f"{input_path.stem}_graded{input_path.suffix}"
+        output_path = Path("data/results/graded") / f"{input_path.stem}_graded{input_path.suffix}"
 
     load_dotenv()
     api_key = os.environ.get("OPENAI_API_KEY")
@@ -122,15 +125,14 @@ def main() -> None:
     entries = json.loads(input_path.read_text())
     print(f"Grading {len(entries)} entries with {args.model}...")
 
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     graded = []
     for i, entry in enumerate(entries):
         grade, reasoning = grade_entry(client, args.model, entry)
         graded_entry = {**entry, "grade": grade, "reasoning": reasoning}
         graded.append(graded_entry)
         print(f"  [{i + 1}/{len(entries)}] {entry['model']} / {entry['dataset']} / {entry['injector']} → {grade}")
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(graded, indent=2) + "\n")
+        output_path.write_text(json.dumps(graded, indent=2) + "\n")
     print(f"\nWrote {len(graded)} graded entries to {output_path}")
 
     # Print summary
