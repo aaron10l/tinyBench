@@ -77,11 +77,13 @@ def inject(
         new_values = np.rint(new_values).astype(float)
     df.iloc[bad_indices, df.columns.get_loc(outcome_col)] = new_values
 
-    # Rename every column except outcome_col to a random 5-letter string.
-    taken = {outcome_col}
+    # Rename every column except outcome_col and id columns to a random 5-letter string.
+    id_no_cols = set(params.get("id_no_cols", []))
+    preserve = {outcome_col} | {c for c in df.columns if c == "row_id"} | id_no_cols
+    taken = set(preserve)
     rename_map = {}
     for col in df.columns:
-        if col == outcome_col:
+        if col in preserve:
             continue
         rename_map[col] = _unique_random_name(rng, taken)
 
