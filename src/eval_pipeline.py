@@ -59,31 +59,33 @@ _TOOL_SPECS = {
     "get_semantic_context": {
         "description": (
             "Retrieve EBM (Explainable Boosting Machine) semantic components for this dataset. "
-            "EBMs are Generalized Additive Models: prediction = intercept + f₁(x₁) + f₂(x₂) + ... "
-            "Each feature contributes independently and additively. "
-            "EBMs also capture pairwise feature interactions beyond the additive main effects. "
-            "For classification, additive contributions are in log-odds (±0.3 meaningful, ±0.7 strong); "
-            "for regression, in target units. "
-            "Normal behavior includes piecewise steps and confidence bands widening at sparse tails."
+            "Components summarize both individual feature effects and pairwise feature interactions. "
+            "Pairwise interactions reveal when a feature's relationship with the target changes "
+            "depending on another feature — especially useful for finding subgroup-specific anomalies, "
+            "regime shifts, or single-column filtering rules. "
+            "For classification, scores are in log-odds; for regression, in target units."
         ),
         "properties": {
             "component": {
                 "type": "string",
-                "enum": ["overview", "feature_importances", "shape_function", "interaction"],
+                "enum": ["overview", "feature_importances", "interaction_importances", "shape_function", "interaction_surface"],
                 "description": (
                     "'overview': dataset metadata (target, row/feature counts). "
-                    "'feature_importances': all features ranked by EBM importance with descriptions and stats. "
-                    "'shape_function': EBM shape function for one feature — also pass 'feature' to specify which one. "
-                    "'interaction': pairwise feature interaction importance — pass 'feature' and 'feature2' to look up a specific pair, or omit both to list all interactions ranked by importance."
+                    "'feature_importances': all features ranked by EBM importance — use to find influential individual features. "
+                    "'interaction_importances': all pairwise interactions ranked by strength — use when investigating "
+                    "subgroup-specific behavior, conditional anomalies, or discovering a filter rule based on one column. "
+                    "'shape_function': EBM shape function for one feature (pass 'feature') — shows how that feature affects predictions across its range. "
+                    "'interaction_surface': detailed interaction for a specific pair (pass 'feature' and 'feature2') — "
+                    "use after identifying a strong interaction via 'interaction_importances'."
                 ),
             },
             "feature": {
                 "type": "string",
-                "description": "First feature name. Required for 'shape_function', optional for 'interaction'.",
+                "description": "Feature name. Required for 'shape_function' and 'interaction_surface'.",
             },
             "feature2": {
                 "type": "string",
-                "description": "Second feature name. Used with component='interaction' to look up a specific pair.",
+                "description": "Second feature name. Required for 'interaction_surface'.",
             },
         },
         "required": ["component"],
@@ -339,7 +341,9 @@ def query_openai_style_tools(
                         result_str = _semantic_feature_importances(csv_path.parent)
                     elif component == "shape_function":
                         result_str = _semantic_shape_function(csv_path.parent, feature)
-                    elif component == "interaction":
+                    elif component == "interaction_importances":
+                        result_str = _semantic_interaction(csv_path.parent, "", "")
+                    elif component == "interaction_surface":
                         result_str = _semantic_interaction(csv_path.parent, feature, feature2)
                     else:
                         result_str = f"Unknown component: {component}"
@@ -435,7 +439,9 @@ def query_anthropic_tools(
                         result_str = _semantic_feature_importances(csv_path.parent)
                     elif component == "shape_function":
                         result_str = _semantic_shape_function(csv_path.parent, feature)
-                    elif component == "interaction":
+                    elif component == "interaction_importances":
+                        result_str = _semantic_interaction(csv_path.parent, "", "")
+                    elif component == "interaction_surface":
                         result_str = _semantic_interaction(csv_path.parent, feature, feature2)
                     else:
                         result_str = f"Unknown component: {component}"
