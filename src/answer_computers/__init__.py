@@ -4,6 +4,7 @@ from .anomaly_data_quality_filter import compute_answer as compute_anomaly_data_
 from .anomaly_riskier_group import compute_answer as compute_anomaly_riskier_group
 from .rca_retrain_point import compute_answer as compute_rca_retrain_point
 from .rca_performance_improve import compute_answer as compute_rca_performance_improve
+from .fi_nonmonotone_peak import compute_answer as compute_fi_nonmonotone_peak
 
 COMPUTE_FN = {
     "fi_leakage_topk_v0": compute_fi_leakage_topk,
@@ -16,4 +17,5 @@ COMPUTE_FN = {
     "rca_retrain_point_v0": compute_rca_retrain_point,
     "rca_performance_improve_v0": compute_rca_performance_improve,
     "rca_performance_improve_v1": compute_rca_performance_improve,
+    "fi_nonmonotone_peak_v0": compute_fi_nonmonotone_peak,
 }

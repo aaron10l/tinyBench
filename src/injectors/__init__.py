@@ -4,6 +4,7 @@ from .anomaly_data_quality_filter import inject as inject_anomaly_data_quality_f
 from .anomaly_data_quality_filter_v1 import inject as inject_anomaly_data_quality_filter_v1
 from .rca_performance_improve import inject as inject_rca_performance_improve
 from .rca_retrain_point import inject as inject_rca_retrain_point
+from .fi_nonmonotone_peak import inject as inject_fi_nonmonotone_peak
 
 INJECT_FN = {
     "fi_leakage_topk": inject_fi_leakage_topk,
@@ -12,4 +13,5 @@ INJECT_FN = {
     "anomaly_data_quality_filter_v1": inject_anomaly_data_quality_filter_v1,
     "rca_performance_improve": inject_rca_performance_improve,
     "rca_retrain_point": inject_rca_retrain_point,
+    "fi_nonmonotone_peak": inject_fi_nonmonotone_peak,
 }

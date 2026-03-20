@@ -1,0 +1,48 @@
+{
+  "template_id": "fi_nonmonotone_peak_v0",
+  "category": "Feature Attribution / Importance",
+  "answer_format": "column_value",
+  "question": "One feature has an inverted-U relationship with {OUTCOME_COL} — performance peaks at a specific value and declines on both sides. Which feature, and at what value is the peak? Return your answer as: column_name, value",
+
+  "slots": {
+    "OUTCOME_COL": {
+      "type": "column",
+      "source": "dataset.target",
+      "kind_any_of": ["regression"],
+      "dtype_any_of": ["int", "float"],
+      "unique_count_min": 10
+    },
+    "EFFECT_STRENGTH": {
+      "type": "float",
+      "default": 2.0
+    }
+  },
+
+  "feature_pool": {
+    "exclude_target": true,
+    "exclude_kinds": ["id_no"],
+    "exclude_dtypes": ["empty"]
+  },
+
+  "phenomena": [
+    {
+      "injector": "fi_nonmonotone_peak",
+      "param_mapping": {
+        "outcome_col": "{OUTCOME_COL}",
+        "effect_strength": "{EFFECT_STRENGTH}"
+      }
+    }
+  ],
+
+  "requirements": [
+    {
+      "type": "min_feature_count",
+      "min": 3
+    },
+    {
+      "type": "min_count_by_dtype_any_of",
+      "dtypes": ["int", "float"],
+      "min": 3
+    }
+  ]
+}
