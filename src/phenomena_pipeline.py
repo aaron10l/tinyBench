@@ -5,6 +5,7 @@ assignments, applies phenomena injections, and generates QA pairs.
 
 Usage:
     python src/phenomena_pipeline.py --summary data/standardized/summaries/bike_sharing_10000.json --seed 42
+    python src/phenomena_pipeline.py --seed 42 --template fi_nonmonotone_peak_v0 fi_interaction_dominant_v0
 
 TODO: 
 - Fix cause of FutureWarning: Setting an item of incompatible dtype is deprecated. Currently suppressing with warnings.filterwarnings.
@@ -239,6 +240,7 @@ def build_instance(
     summary_path: str | Path,
     seed: int,
     templates_dir: str | Path = "templates",
+    template_filter: List[str] | None = None,
 ) -> List[Path]:
     """Full pipeline: load -> match -> inject one phenomenon per instance -> QA -> save.
 
@@ -261,6 +263,11 @@ def build_instance(
 
     # 2. Get template matches
     matches = get_template_matches(summary_path, base_dataset, templates_dir, seed=seed)
+
+    # Filter to specific templates if requested
+    if template_filter:
+        filter_set = set(template_filter)
+        matches = [m for m in matches if m.template["template_id"] in filter_set]
 
     compatible = [m for m in matches if m.is_compatible]
 
@@ -416,10 +423,16 @@ def main() -> None:
         default=42,
         help="Random seed",
     )
+    parser.add_argument(
+        "--template",
+        nargs="+",
+        default=None,
+        help="Only run specific template IDs (e.g. --template fi_nonmonotone_peak_v0 fi_interaction_dominant_v0)",
+    )
     args = parser.parse_args()
 
     if args.summary:
-        build_instance(args.summary, args.seed, args.templates_dir)
+        build_instance(args.summary, args.seed, args.templates_dir, template_filter=args.template)
     else:
         summaries_dir = Path("data/standardized/summaries")
         summary_files = sorted(summaries_dir.glob("*.json"))
@@ -427,7 +440,7 @@ def main() -> None:
             print(f"No summary files found in {summaries_dir}")
             return
         for summary_path in summary_files:
-            build_instance(str(summary_path), args.seed, args.templates_dir)
+            build_instance(str(summary_path), args.seed, args.templates_dir, template_filter=args.template)
 
 
 if __name__ == "__main__":
