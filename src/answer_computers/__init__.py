@@ -5,6 +5,7 @@ from .anomaly_riskier_group import compute_answer as compute_anomaly_riskier_gro
 from .rca_retrain_point import compute_answer as compute_rca_retrain_point
 from .rca_performance_improve import compute_answer as compute_rca_performance_improve
 from .fi_nonmonotone_peak import compute_answer as compute_fi_nonmonotone_peak
+from .fi_interaction_dominant import compute_answer as compute_fi_interaction_dominant
 
 COMPUTE_FN = {
     "fi_leakage_topk_v0": compute_fi_leakage_topk,
@@ -18,4 +19,5 @@ COMPUTE_FN = {
     "rca_performance_improve_v0": compute_rca_performance_improve,
     "rca_performance_improve_v1": compute_rca_performance_improve,
     "fi_nonmonotone_peak_v0": compute_fi_nonmonotone_peak,
+    "fi_interaction_dominant_v0": compute_fi_interaction_dominant,
 }
