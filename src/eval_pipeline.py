@@ -615,19 +615,21 @@ def _semantic_interaction(instance_dir: Path, feature: str, feature2: str) -> st
 def discover_instances(
     instances_dir: Path,
     dataset: str | None = None,
-    injector: str | None = None,
+    injector: str | list[str] | None = None,
 ) -> list[Path]:
     """Return manifests sorted by CSV size (smallest datasets first).
 
     Args:
         dataset:  Substring match against the dataset folder name (e.g. 'bike_sharing_100').
-        injector: Substring match against the injector folder name (e.g. 'name_swap').
+        injector: Substring match (or list of substrings) against the injector folder name.
     """
     manifests = list(instances_dir.glob("**/manifest.json"))
     if dataset:
         manifests = [m for m in manifests if m.parts[-4] == dataset]
     if injector:
-        manifests = [m for m in manifests if injector in m.parts[-2]]
+        if isinstance(injector, str):
+            injector = [injector]
+        manifests = [m for m in manifests if any(inj in m.parts[-2] for inj in injector)]
     return sorted(manifests, key=lambda m: (m.parent / "table.csv").stat().st_size)
 
 
@@ -640,7 +642,7 @@ def run_eval(
     instances_dir: Path,
     output_path: Path,
     dataset: str | None = None,
-    injector: str | None = None,
+    injector: str | list[str] | None = None,
     enabled_tools: set = frozenset(),
     columns_only: bool = False,
     table_in_prompt: bool = False,
@@ -856,8 +858,9 @@ def main() -> None:
     )
     parser.add_argument(
         "--injector",
+        nargs="+",
         default=None,
-        help="Filter instances by injector name substring (e.g. 'name_swap')",
+        help="Filter instances by injector name substring(s) (e.g. --injector fi_nonmonotone_peak fi_interaction_dominant)",
     )
     parser.add_argument(
         "--tools",
