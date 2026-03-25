@@ -14,22 +14,34 @@ All scripts run from the repo root using the `.venv` virtual environment (Python
 # 1. Generate benchmark instances (phenomena injection + QA generation)
 python src/phenomena_pipeline.py --seed 42
 python src/phenomena_pipeline.py --summary data/standardized/summaries/bike_sharing_100.json --seed 42
+python src/phenomena_pipeline.py --template fi_nonmonotone_peak_v0 fi_interaction_dominant_v0  # specific templates only
 
 # 2. Compute ground-truth answers for generated instances
 python src/answer_pipeline.py
 python src/answer_pipeline.py --instances-dir data/instances
 
-# 3. Evaluate models — provider auto-detected from model name
+# 3. Generate semantic components (EBM shape functions, UMAP, feature metadata)
+python src/generate_semantic_components.py                    # walk all instances
+python src/generate_semantic_components.py --force            # regenerate all
+python src/generate_semantic_components.py --dataset _100     # filter by dataset name substring
+
+# 4. Evaluate models — provider auto-detected from model name
 python src/eval_pipeline.py --models deepseek-r1:8b qwen2.5:7b          # Ollama only
 python src/eval_pipeline.py --models claude-opus-4-6 gpt-4o              # API only (needs .env)
 python src/eval_pipeline.py --models deepseek-r1:8b claude-opus-4-6      # mixed
+python src/eval_pipeline.py --models gpt-4o --tools load_data run_python  # with tool use
+python src/eval_pipeline.py --models gpt-4o --dataset bike_sharing_100 --injector fi_leakage_topk  # filtered
+
+# 5. Grade evaluation results
+python src/grade_pipeline.py --input data/results/eval_results_cluster.json
+python src/grade_pipeline.py --input data/results/eval_results_cluster.json --model gpt-4o
 ```
 
 There is no formal test suite.
 
 ## Architecture
 
-The system follows a four-stage pipeline:
+The system follows a six-stage pipeline:
 
 1. **Data Preparation** — Base CSVs in `data/base/` are standardized into `data/standardized/` at multiple row counts (100, 500, 1000). Summaries in `data/standardized/summaries/` describe column metadata (dtype, kind, cardinality).
 
@@ -37,7 +49,11 @@ The system follows a four-stage pipeline:
 
 3. **Answer Computation** (`answer_pipeline.py`) — Walks `data/instances/{dataset}/seed_{N}/{injector}/manifest.json` files and runs the corresponding answer computer to produce ground-truth answers.
 
-4. **Evaluation** (`eval_pipeline.py`) — Sends table + question to models, collects responses, saves results to `data/results/`. Provider is auto-detected from the model name; supports Ollama, Anthropic, and OpenAI in a single run.
+4. **Semantic Component Generation** (`generate_semantic_components.py`) — Trains an EBM per instance and produces `graphs.json.gz` (shape functions), `umap_embedding.json`, `feature_metadata.json` (stats + LLM descriptions), and `semantic_metadata.json`. Uses vendored `intelligible-ai` from `vendor/intelligible-ai/src/`.
+
+5. **Evaluation** (`eval_pipeline.py`) — Sends table + question to models, collects responses, saves results to `data/results/`. Provider is auto-detected from the model name; supports Ollama, Anthropic, and OpenAI in a single run. Supports tool-use evaluation with `--tools` (options: `load_data`, `run_python`, `get_semantic_context`).
+
+6. **Grading** (`grade_pipeline.py`) — Reads eval results JSON, grades each entry as CORRECT / PARTIAL / INCORRECT using an OpenAI model (default: `gpt-4o-mini`), and writes graded results with `grade` and `reasoning` fields.
 
 ## Dispatch Registries
 
@@ -48,12 +64,15 @@ Injectors and answer computers are dispatched via dicts in their respective `__i
 
 ## Injector ↔ Answer Computer Pairs
 
-| Phenomenon | Injector | Answer Computer (template_id) | Category |
+| Phenomenon | Injector | Answer Computer (template_ids) | Category |
 |---|---|---|---|
-| Heteroskedastic groups | `anomaly_riskier_group` | `anomaly_riskier_group_v0` | surprise_anomaly |
+| Heteroskedastic groups | `anomaly_riskier_group` | `anomaly_riskier_group_v0`, `v1`, `v2` | surprise_anomaly |
 | Bad row indicators | `anomaly_data_quality_filter` | `anomaly_data_quality_filter_v0` | surprise_anomaly |
-| Misleading column names | `fi_leakage_topk` | `fi_leakage_topk_v0` | feature_importance |
-| Simpson's paradox | `rca_performance_improve` | `rca_performance_improve_v0` | root_cause |
+| Bad row indicators (v1) | `anomaly_data_quality_filter_v1` | `anomaly_data_quality_filter_v1` | surprise_anomaly |
+| Misleading column names | `fi_leakage_topk` | `fi_leakage_topk_v0`, `v1` | feature_importance |
+| Non-monotone peak | `fi_nonmonotone_peak` | `fi_nonmonotone_peak_v0` | feature_importance |
+| Dominant feature interaction | `fi_interaction_dominant` | `fi_interaction_dominant_v0` | feature_importance |
+| Simpson's paradox | `rca_performance_improve` | `rca_performance_improve_v0`, `v1` | root_cause |
 | Change-point shift | `rca_retrain_point` | `rca_retrain_point_v0` | root_cause |
 
 ### Injector interface
