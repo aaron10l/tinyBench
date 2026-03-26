@@ -6,6 +6,7 @@ from .rca_performance_improve import inject as inject_rca_performance_improve
 from .rca_retrain_point import inject as inject_rca_retrain_point
 from .fi_nonmonotone_peak import inject as inject_fi_nonmonotone_peak
 from .fi_interaction_dominant import inject as inject_fi_interaction_dominant
+from .fi_monotone_classify import inject as inject_fi_monotone_classify
 
 INJECT_FN = {
     "fi_leakage_topk": inject_fi_leakage_topk,
@@ -16,4 +17,5 @@ INJECT_FN = {
     "rca_retrain_point": inject_rca_retrain_point,
     "fi_nonmonotone_peak": inject_fi_nonmonotone_peak,
     "fi_interaction_dominant": inject_fi_interaction_dominant,
+    "fi_monotone_classify": inject_fi_monotone_classify,
 }
