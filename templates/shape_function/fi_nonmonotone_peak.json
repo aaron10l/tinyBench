@@ -1,8 +1,8 @@
 {
-  "template_id": "fi_monotone_classify_v0",
-  "category": "Feature Attribution / Importance",
-  "answer_format": "column_name",
-  "question": "For each numeric feature, classify its relationship with {OUTCOME_COL} as MONOTONE (consistently increasing or decreasing) or NON-MONOTONE (changes direction at least once). Which feature has the most non-monotone relationship with the outcome? Return only the feature name.",
+  "template_id": "fi_nonmonotone_peak_v0",
+  "category": "Shape Function Interpretation",
+  "answer_format": "column_value",
+  "question": "One feature has an inverted-U relationship with {OUTCOME_COL} — performance peaks at a specific value and declines on both sides. Which feature, and at what value is the peak? Return your answer as: column_name, value",
 
   "slots": {
     "OUTCOME_COL": {
@@ -14,7 +14,7 @@
     },
     "EFFECT_STRENGTH": {
       "type": "float",
-      "default": 3.0
+      "default": 2.0
     }
   },
 
@@ -26,7 +26,7 @@
 
   "phenomena": [
     {
-      "injector": "fi_monotone_classify",
+      "injector": "fi_nonmonotone_peak",
       "param_mapping": {
         "outcome_col": "{OUTCOME_COL}",
         "effect_strength": "{EFFECT_STRENGTH}"

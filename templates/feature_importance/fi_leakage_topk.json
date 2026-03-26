@@ -1,6 +1,6 @@
 {
   "template_id": "fi_leakage_topk_v0",
-  "category": "Feature Attribution / Importance",
+  "category": "Feature Importance Ranking",
   "answer_format": "feature_ranked_list",
   "question": "Which columns have the highest absolute Pearson correlation with {OUTCOME_COL}? Return up to {K} feature names, ranked from highest to lowest correlation, as a comma-separated list (e.g. col_a, col_b, col_c).",
 

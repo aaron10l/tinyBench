@@ -1,8 +1,8 @@
 {
-  "template_id": "fi_nonmonotone_peak_v0",
-  "category": "Feature Attribution / Importance",
-  "answer_format": "column_value",
-  "question": "One feature has an inverted-U relationship with {OUTCOME_COL} — performance peaks at a specific value and declines on both sides. Which feature, and at what value is the peak? Return your answer as: column_name, value",
+  "template_id": "fi_interaction_dominant_v0",
+  "category": "Interaction Detection",
+  "answer_format": "column_pair",
+  "question": "Which pair of features has the strongest interaction effect on {OUTCOME_COL}? Return the two column names as: column_a, column_b",
 
   "slots": {
     "OUTCOME_COL": {
@@ -10,11 +10,11 @@
       "source": "dataset.target",
       "kind_any_of": ["regression"],
       "dtype_any_of": ["int", "float"],
-      "unique_count_min": 10
+      "unique_count_min": 2
     },
     "EFFECT_STRENGTH": {
       "type": "float",
-      "default": 2.0
+      "default": 1.5
     }
   },
 
@@ -26,7 +26,7 @@
 
   "phenomena": [
     {
-      "injector": "fi_nonmonotone_peak",
+      "injector": "fi_interaction_dominant",
       "param_mapping": {
         "outcome_col": "{OUTCOME_COL}",
         "effect_strength": "{EFFECT_STRENGTH}"
@@ -37,7 +37,7 @@
   "requirements": [
     {
       "type": "min_feature_count",
-      "min": 3
+      "min": 5
     },
     {
       "type": "min_count_by_dtype_any_of",

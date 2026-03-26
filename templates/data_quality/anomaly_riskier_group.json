@@ -1,6 +1,6 @@
 {
   "template_id": "anomaly_riskier_group_v0",
-  "category": "Surprise / Anomaly Detection",
+  "category": "Data Quality / Feature Semantics",
   "answer_format": "categorical",
   "question": "Between groups {GROUP_A} and {GROUP_B} (defined by {GROUP_COL}), which group should be treated as higher risk with respect to {RISK_METRIC_COL}? Return exactly one group name.",
 

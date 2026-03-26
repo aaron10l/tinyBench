@@ -1,6 +1,6 @@
 {
   "template_id": "fi_leakage_topk_v1",
-  "category": "Feature Attribution / Importance",
+  "category": "Feature Importance Ranking",
   "answer_format": "feature_ranked_list",
   "question": "You want to build a binary classifier to predict {OUTCOME_COL} and maximize AUROC. Which {K} features are most predictive? Return feature names ranked from most to least predictive as a comma-separated list (e.g. col_a, col_b, col_c).",
 
