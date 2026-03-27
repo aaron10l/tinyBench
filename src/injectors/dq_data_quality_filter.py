@@ -1,24 +1,17 @@
-"""Bad-rows indicator injector v1.
+"""Bad-rows indicator injector.
 
-Same as anomaly_data_quality_filter, but renames every column except the outcome column
-to a random 5-letter string after injection. Column names give no semantic
-signal — the model must reason purely from the data values.
+Injects a column that identifies rows with corrupted / nonsensical outcomes.
+Removing rows flagged by this column dramatically improves outcome consistency.
+
+TODO:
+- Is the name of the column too obvious/too big of a hint?
+- i am currently injecting 10% of rows as bad. All of these rows are labeled as bad via the check_flag column.
+  should i have the check_flag column only label 90% of the bad rows as bad, and mislabel the other 10% as good?
 """
 from __future__ import annotations
 
-import string
-
 import numpy as np
 import pandas as pd
-
-
-def _unique_random_name(rng: np.random.Generator, taken: set[str], length: int = 5) -> str:
-    letters = list(string.ascii_lowercase)
-    while True:
-        name = "".join(rng.choice(letters, size=length))
-        if name not in taken:
-            taken.add(name)
-            return name
 
 
 def inject(
@@ -46,7 +39,8 @@ def inject(
     n_bad = max(1, int(n * bad_fraction))
     bad_indices = rng.choice(n, size=n_bad, replace=False)
 
-    # Pick from neutral names so the column doesn't stand out before renaming
+    # Pick from a list of neutral, domain-agnostic names that look like ordinary
+    # categorical features — no quality/filter connotation.
     _CANDIDATE_NAMES = [
         "region", "channel", "segment", "cohort", "tier",
         "variant", "cluster", "period", "quarter", "sample",
@@ -56,7 +50,6 @@ def inject(
     existing = set(df.columns)
     candidates = [n for n in _CANDIDATE_NAMES if n not in existing]
     indicator_col = candidates[rng.integers(0, len(candidates))] + "_flag"
-
     insert_pos = rng.integers(0, max(1, len(df.columns)))
     if insert_pos == len(df.columns):
         insert_pos = max(0, len(df.columns) - 1)
@@ -72,26 +65,16 @@ def inject(
     corruption = np.abs(rng.normal(0, outcome_std * 0.5, n_bad))
     corruption = np.minimum(corruption, outcome_std * corruption_cap_std)
     new_values = outcome_values.iloc[bad_indices].values + corruption
+    # Match the column's numeric style: if all values are integer-like, keep whole numbers.
     non_null = outcome_values.dropna()
     if len(non_null) > 0 and np.all(np.isclose(non_null.values, np.rint(non_null.values))):
         new_values = np.rint(new_values).astype(float)
     df.iloc[bad_indices, df.columns.get_loc(outcome_col)] = new_values
 
-    # Rename every column except outcome_col and id columns to a random 5-letter string.
-    id_no_cols = set(params.get("id_no_cols", []))
-    preserve = {outcome_col} | {c for c in df.columns if c == "row_id"} | id_no_cols
-    taken = set(preserve)
-    rename_map = {}
-    for col in df.columns:
-        if col in preserve:
-            continue
-        rename_map[col] = _unique_random_name(rng, taken)
-
-    df = df.rename(columns=rename_map)
-    renamed_indicator_col = rename_map[indicator_col]
+    # print(f"[anomaly_data_quality_filter] Modified rows: {n_bad}")
 
     effects = {
-        "indicator_col": renamed_indicator_col,
+        "indicator_col": indicator_col,
         "n_bad_rows": int(n_bad),
         "bad_fraction": bad_fraction,
         "corruption_cap_std": corruption_cap_std,
@@ -99,7 +82,7 @@ def inject(
     }
 
     return df, {
-        "type": "anomaly_data_quality_filter_v1",
+        "type": "dq_data_quality_filter",
         "params": params,
         "effects": effects,
     }

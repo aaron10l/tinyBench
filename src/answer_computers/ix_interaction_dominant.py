@@ -9,7 +9,7 @@ def compute_answer(df: pd.DataFrame, slot_assignments: dict, effects: dict) -> A
 
     Answer format: "column_a, column_b" (sorted alphabetically).
     """
-    inj = effects["fi_interaction_dominant"]
+    inj = effects["ix_interaction_dominant"]
     feat_a = inj["feat_a"]
     feat_b = inj["feat_b"]
 

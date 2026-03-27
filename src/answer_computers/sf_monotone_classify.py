@@ -30,7 +30,7 @@ def compute_answer(df: pd.DataFrame, slot_assignments: dict, effects: dict) -> A
 
     Answer format: "feature_name"
     """
-    inj = effects["fi_monotone_classify"]
+    inj = effects["sf_monotone_classify"]
     injected_feature = inj["injected_feature"]
 
     outcome_col = slot_assignments["OUTCOME_COL"]

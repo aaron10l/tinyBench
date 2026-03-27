@@ -9,7 +9,7 @@ def compute_answer(df: pd.DataFrame, slot_assignments: dict, effects: dict) -> A
 
     Answer format: "feature_name, peak_value"
     """
-    inj = effects["fi_nonmonotone_peak"]
+    inj = effects["sf_nonmonotone_peak"]
     feature = inj["peak_feature"]
     peak = inj["peak_value"]
 

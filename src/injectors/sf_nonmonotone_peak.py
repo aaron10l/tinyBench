@@ -168,7 +168,7 @@ def inject(
     }
 
     return df, {
-        "type": "fi_nonmonotone_peak",
+        "type": "sf_nonmonotone_peak",
         "params": params,
         "effects": effects,
     }

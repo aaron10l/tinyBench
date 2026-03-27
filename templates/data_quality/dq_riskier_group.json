@@ -1,5 +1,5 @@
 {
-  "template_id": "anomaly_riskier_group_v2",
+  "template_id": "dq_riskier_group_v0",
   "category": "Data Quality / Feature Semantics",
   "answer_format": "categorical",
   "question": "Between groups {GROUP_A} and {GROUP_B} (defined by {GROUP_COL}), which group should be treated as higher risk with respect to {RISK_METRIC_COL}? Return exactly one group name.",
@@ -30,7 +30,7 @@
     },
     "STD_MULTIPLIER": {
       "type": "float",
-      "default": 3.0
+      "default": 5.0
     }
   },
 
@@ -42,7 +42,7 @@
 
   "phenomena": [
     {
-      "injector": "anomaly_riskier_group",
+      "injector": "dq_riskier_group",
       "param_mapping": {
         "group_col": "{GROUP_COL}",
         "metric_col": "{RISK_METRIC_COL}",

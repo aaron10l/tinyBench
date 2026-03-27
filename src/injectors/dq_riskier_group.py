@@ -91,7 +91,7 @@ def inject(
     }
 
     return df, {
-        "type": "anomaly_riskier_group",
+        "type": "dq_riskier_group",
         "params": params,
         "effects": effects,
     }

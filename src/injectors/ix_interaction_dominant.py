@@ -161,7 +161,7 @@ def inject(
     }
 
     return df, {
-        "type": "fi_interaction_dominant",
+        "type": "ix_interaction_dominant",
         "params": params,
         "effects": effects,
     }

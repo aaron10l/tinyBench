@@ -214,7 +214,7 @@ def inject(
         }
 
         return df, {
-            "type": "fi_monotone_classify",
+            "type": "sf_monotone_classify",
             "params": params,
             "effects": effects,
         }
