@@ -1,5 +1,5 @@
-from .fi_leakage_topk import compute_answer as compute_fi_leakage_topk
-from .fi_leakage_topk_v1 import compute_answer as compute_fi_leakage_topk_v1
+from .fi_top_features import compute_answer as compute_fi_top_features
+from .fi_top_features_v1 import compute_answer as compute_fi_top_features_v1
 from .dq_bad_row_indicator import compute_answer as compute_dq_bad_row_indicator
 from .dq_riskier_group import compute_answer as compute_dq_riskier_group
 from .rca_retrain_point import compute_answer as compute_rca_retrain_point
@@ -9,8 +9,8 @@ from .ix_interaction_dominant import compute_answer as compute_ix_interaction_do
 from .sf_monotone_classify import compute_answer as compute_sf_monotone_classify
 
 COMPUTE_FN = {
-    "fi_leakage_topk_v0": compute_fi_leakage_topk,
-    "fi_leakage_topk_v1": compute_fi_leakage_topk_v1,
+    "fi_top_features_v0": compute_fi_top_features,
+    "fi_top_features_v1": compute_fi_top_features_v1,
     "dq_bad_row_indicator_v0": compute_dq_bad_row_indicator,
     "dq_bad_row_indicator_v1": compute_dq_bad_row_indicator,
     "dq_riskier_group_v0": compute_dq_riskier_group,

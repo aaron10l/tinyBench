@@ -1,4 +1,4 @@
-from .fi_leakage_topk import inject as inject_fi_leakage_topk
+from .fi_top_features import inject as inject_fi_top_features
 from .dq_riskier_group import inject as inject_dq_riskier_group
 from .dq_bad_row_indicator import inject as inject_dq_bad_row_indicator
 from .dq_bad_row_indicator_v1 import inject as inject_dq_bad_row_indicator_v1
@@ -9,7 +9,7 @@ from .ix_interaction_dominant import inject as inject_ix_interaction_dominant
 from .sf_monotone_classify import inject as inject_sf_monotone_classify
 
 INJECT_FN = {
-    "fi_leakage_topk": inject_fi_leakage_topk,
+    "fi_top_features": inject_fi_top_features,
     "dq_riskier_group": inject_dq_riskier_group,
     "dq_bad_row_indicator": inject_dq_bad_row_indicator,
     "dq_bad_row_indicator_v1": inject_dq_bad_row_indicator_v1,

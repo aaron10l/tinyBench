@@ -285,7 +285,7 @@ def build_instance(
         injector_type = spec["type"]
         params = spec["params"]
 
-        if injector_type == "fi_leakage_topk" and id_no_cols:
+        if injector_type == "fi_top_features" and id_no_cols:
             params = {**params, "id_no_cols": id_no_cols}
 
         # Start from fresh copy of original data
@@ -318,10 +318,10 @@ def build_instance(
         # Get templates that use this specific phenomenon
         relevant_matches = _get_templates_for_phenomenon(matches, injector_type)
 
-        # Strip id_no columns for fi_leakage_topk: the question asks about
+        # Strip id_no columns for fi_top_features: the question asks about
         # feature correlations, and id_no columns are not features.
         df_to_save = df_injected
-        if injector_type == "fi_leakage_topk" and id_no_cols:
+        if injector_type == "fi_top_features" and id_no_cols:
             drop = [c for c in id_no_cols if c in df_injected.columns]
             if drop:
                 df_to_save = df_injected.drop(columns=drop)

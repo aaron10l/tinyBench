@@ -55,7 +55,7 @@ def inject(
     if len(columns_to_swap) < 2:
         # Nothing meaningful to swap — return unmodified
         return df, {
-            "type": "fi_leakage_topk",
+            "type": "fi_top_features",
             "params": params,
             "effects": {"original_to_new": {}, "new_to_original": {}},
         }
@@ -77,7 +77,7 @@ def inject(
     }
 
     return df, {
-        "type": "fi_leakage_topk",
+        "type": "fi_top_features",
         "params": params,
         "effects": effects,
     }

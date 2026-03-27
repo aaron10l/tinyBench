@@ -1,14 +1,14 @@
 {
-  "template_id": "fi_leakage_topk_v1",
+  "template_id": "fi_top_features_v0",
   "category": "Feature Importance Ranking",
   "answer_format": "feature_ranked_list",
-  "question": "You want to build a binary classifier to predict {OUTCOME_COL} and maximize AUROC. Which {K} features are most predictive? Return feature names ranked from most to least predictive as a comma-separated list (e.g. col_a, col_b, col_c).",
+  "question": "Which columns have the highest absolute Pearson correlation with {OUTCOME_COL}? Return up to {K} feature names, ranked from highest to lowest correlation, as a comma-separated list (e.g. col_a, col_b, col_c).",
 
   "slots": {
     "OUTCOME_COL": {
       "type": "column",
       "source": "dataset.target",
-      "kind_any_of": ["binary"]
+      "kind_any_of": ["regression", "binary", "categorical"]
     },
     "K": {
       "type": "int",
@@ -25,7 +25,7 @@
 
   "phenomena": [
     {
-      "injector": "fi_leakage_topk",
+      "injector": "fi_top_features",
       "param_mapping": {
         "target_col": "{OUTCOME_COL}"
       }
