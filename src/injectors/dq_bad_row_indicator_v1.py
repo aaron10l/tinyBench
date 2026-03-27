@@ -99,7 +99,7 @@ def inject(
     }
 
     return df, {
-        "type": "dq_data_quality_filter_v1",
+        "type": "dq_bad_row_indicator_v1",
         "params": params,
         "effects": effects,
     }

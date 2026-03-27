@@ -1,5 +1,6 @@
+
 {
-  "template_id": "dq_data_quality_filter_v1",
+  "template_id": "dq_bad_row_indicator_v0",
   "category": "Data Quality / Feature Semantics",
   "answer_format": "categorical",
   "question": "You can apply exactly one rule based on a single column to exclude problematic rows before analyzing {OUTCOME_COL}. Which column should the rule be based on? Return a single column name.",
@@ -30,7 +31,7 @@
 
   "phenomena": [
     {
-      "injector": "dq_data_quality_filter_v1",
+      "injector": "dq_bad_row_indicator",
       "param_mapping": {
         "outcome_col": "{OUTCOME_COL}",
         "bad_fraction": "{BAD_FRACTION}",
